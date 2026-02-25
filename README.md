@@ -1,4 +1,5 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## OJT RECOMMENDER SYSTEM
+A system that recommends OJT students companies based on their technical skills using TFIDF cosine algorithnm.
 
 ## Getting Started
 
