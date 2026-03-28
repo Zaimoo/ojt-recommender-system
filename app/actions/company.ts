@@ -1,77 +1,172 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { PROGRAM_OPTIONS, type ProgramOption } from "@/lib/constants/programs";
+import { createClient } from "@/lib/supabase/server";
+
+type CompanyPayload = {
+  name: string;
+  description: string;
+  logo_url: string | null;
+  email_address: string | null;
+  location_address: string | null;
+  website_url: string | null;
+  contact_number: string | null;
+  required_skills: string[];
+  eligibility_programs: ProgramOption[];
+};
+
+type ParseCompanyPayloadResult =
+  | { ok: true; payload: CompanyPayload }
+  | { ok: false; error: string };
+
+export type CompanyActionResult = { success: true } | { error: string };
+
+function optionalText(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseSkills(value: string): string[] {
+  return value
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+}
+
+function sanitizeFileName(fileName: string): string {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function uploadCompanyImage(
+  file: File,
+): Promise<{ publicUrl: string } | { error: string }> {
+  const supabase = await createClient();
+  const safeName = sanitizeFileName(file.name);
+  const path = `company-logos/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("company-assets")
+    .upload(path, file, {
+      upsert: false,
+      contentType: file.type || "image/jpeg",
+    });
+
+  if (uploadError) {
+    return { error: `Image upload failed: ${uploadError.message}` };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("company-assets").getPublicUrl(path);
+
+  return { publicUrl };
+}
+
+function parseCompanyPayload(formData: FormData): ParseCompanyPayloadResult {
+  const name = (formData.get("name") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim() ?? "";
+  const requiredSkillsRaw = (formData.get("required_skills") as string) ?? "";
+  const selectedPrograms = formData
+    .getAll("eligibility_programs")
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim().toUpperCase() as ProgramOption)
+    .filter((value) => PROGRAM_OPTIONS.includes(value));
+  const existingLogoUrl = optionalText(formData.get("existing_logo_url"));
+
+  if (!name) return { ok: false, error: "Company name is required." };
+  if (selectedPrograms.length === 0) {
+    return { ok: false, error: "Please select at least one eligible program." };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      name,
+      description,
+      logo_url: existingLogoUrl,
+      email_address: optionalText(formData.get("email_address")),
+      location_address: optionalText(formData.get("location_address")),
+      website_url: optionalText(formData.get("website_url")),
+      contact_number: optionalText(formData.get("contact_number")),
+      required_skills: parseSkills(requiredSkillsRaw),
+      eligibility_programs: selectedPrograms,
+    },
+  };
+}
 
 // ─────────────────────────────────────────────────────────────
 // Company CRUD (coordinator only)
 // ─────────────────────────────────────────────────────────────
 
-export async function createCompany(formData: FormData) {
+export async function createCompany(
+  formData: FormData,
+): Promise<CompanyActionResult> {
   const supabase = await createClient();
+  const parsed = parseCompanyPayload(formData);
 
-  const name = formData.get("name") as string;
-  const description = formData.get("description") as string;
-  const skillsRaw = formData.get("required_skills") as string;
-  const programsRaw = formData.get("eligibility_programs") as string;
+  if (!parsed.ok) return { error: parsed.error };
 
-  const required_skills = skillsRaw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const eligibility_programs = programsRaw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const image = formData.get("company_image");
+  if (image instanceof File && image.size > 0) {
+    const uploaded = await uploadCompanyImage(image);
+    if ("error" in uploaded) return uploaded;
+    parsed.payload.logo_url = uploaded.publicUrl;
+  }
 
-  const { error } = await supabase
-    .from("companies")
-    .insert({ name, description, required_skills, eligibility_programs });
-
+  const { error } = await supabase.from("companies").insert(parsed.payload);
   if (error) return { error: error.message };
 
-  revalidatePath("/admin");
+  revalidatePath("/coordinator");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
-export async function updateCompany(formData: FormData) {
+export async function updateCompany(
+  formData: FormData,
+): Promise<CompanyActionResult> {
   const supabase = await createClient();
 
-  const id = formData.get("id") as string;
-  const name = formData.get("name") as string;
-  const description = formData.get("description") as string;
-  const skillsRaw = formData.get("required_skills") as string;
-  const programsRaw = formData.get("eligibility_programs") as string;
+  const id = (formData.get("id") as string)?.trim();
+  if (!id) return { error: "Missing company id." };
 
-  const required_skills = skillsRaw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const eligibility_programs = programsRaw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const parsed = parseCompanyPayload(formData);
+  if (!parsed.ok) return { error: parsed.error };
+
+  const image = formData.get("company_image");
+  if (image instanceof File && image.size > 0) {
+    const uploaded = await uploadCompanyImage(image);
+    if ("error" in uploaded) return uploaded;
+    parsed.payload.logo_url = uploaded.publicUrl;
+  }
 
   const { error } = await supabase
     .from("companies")
-    .update({ name, description, required_skills, eligibility_programs })
+    .update(parsed.payload)
     .eq("id", id);
 
   if (error) return { error: error.message };
 
-  revalidatePath("/admin");
+  revalidatePath("/coordinator");
+  revalidatePath("/dashboard");
+  revalidatePath(`/companyDetails/${id}`);
   return { success: true };
 }
 
-export async function deleteCompany(formData: FormData) {
+export async function deleteCompany(
+  formData: FormData,
+): Promise<CompanyActionResult> {
   const supabase = await createClient();
 
-  const id = formData.get("id") as string;
+  const id = (formData.get("id") as string)?.trim();
+  if (!id) return { error: "Missing company id." };
 
   const { error } = await supabase.from("companies").delete().eq("id", id);
-
   if (error) return { error: error.message };
 
-  revalidatePath("/admin");
+  revalidatePath("/coordinator");
+  revalidatePath("/dashboard");
+  revalidatePath(`/companyDetails/${id}`);
   return { success: true };
 }

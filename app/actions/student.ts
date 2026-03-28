@@ -1,7 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { PROGRAM_OPTIONS, type ProgramOption } from "@/lib/constants/programs";
+import { createClient } from "@/lib/supabase/server";
 
 // ─────────────────────────────────────────────────────────────
 // Student profile actions
@@ -56,11 +57,17 @@ export async function updateStudentProgram(formData: FormData) {
 
   if (!user) return { error: "Not authenticated" };
 
-  const program_id = formData.get("program_id") as string;
+  const programRaw = ((formData.get("program_id") as string) ?? "")
+    .trim()
+    .toUpperCase() as ProgramOption;
+
+  if (!PROGRAM_OPTIONS.includes(programRaw)) {
+    return { error: "Please select a valid program." };
+  }
 
   const { error } = await supabase
     .from("profiles")
-    .update({ program_id })
+    .update({ program_id: programRaw })
     .eq("id", user.id);
 
   if (error) return { error: error.message };

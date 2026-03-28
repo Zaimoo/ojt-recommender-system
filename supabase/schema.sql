@@ -9,29 +9,34 @@ create table if not exists public.profiles (
   email       text not null,
   role        text not null default 'student' check (role in ('student', 'coordinator')),
   full_name   text not null default '',
-  program_id  text,
+  program_id  text check (program_id in ('BSIS', 'BSIT', 'BSCS', 'BSCA')),
   created_at  timestamptz not null default now()
 );
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can read own profile" on public.profiles;
 create policy "Users can read own profile"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id);
 
--- Helper: check if the current user is a coordinator without triggering RLS
 create or replace function public.is_coordinator()
 returns boolean as $$
   select exists (
-    select 1 from public.profiles where id = auth.uid() and role = 'coordinator'
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and role = 'coordinator'
   );
 $$ language sql security definer stable;
 
--- Allow coordinators to view all profiles
+-- Coordinators can view all profiles
+drop policy if exists "Coordinators can view all profiles" on public.profiles;
 create policy "Coordinators can view all profiles"
   on public.profiles for select
   using ( public.is_coordinator() );
@@ -41,28 +46,44 @@ create table if not exists public.companies (
   id                    uuid primary key default gen_random_uuid(),
   name                  text not null,
   description           text not null default '',
+  logo_url              text,
+  email_address         text,
+  location_address      text,
+  website_url           text,
+  contact_number        text,
   required_skills       text[] not null default '{}',
-  eligibility_programs  text[] not null default '{}',
+  eligibility_programs  text[] not null default '{}' check (eligibility_programs <@ array['BSIS','BSIT','BSCS','BSCA']::text[]),
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
 
+-- Existing deployments: ensure new company detail columns exist
+alter table public.companies add column if not exists logo_url text;
+alter table public.companies add column if not exists email_address text;
+alter table public.companies add column if not exists location_address text;
+alter table public.companies add column if not exists website_url text;
+alter table public.companies add column if not exists contact_number text;
+
 alter table public.companies enable row level security;
 
 -- Everyone authenticated can read companies
+drop policy if exists "Authenticated users can read companies" on public.companies;
 create policy "Authenticated users can read companies"
   on public.companies for select
   using (auth.role() = 'authenticated');
 
 -- Only coordinators can insert / update / delete companies
+drop policy if exists "Coordinators can insert companies" on public.companies;
 create policy "Coordinators can insert companies"
   on public.companies for insert
   with check ( public.is_coordinator() );
 
+drop policy if exists "Coordinators can update companies" on public.companies;
 create policy "Coordinators can update companies"
   on public.companies for update
   using ( public.is_coordinator() );
 
+drop policy if exists "Coordinators can delete companies" on public.companies;
 create policy "Coordinators can delete companies"
   on public.companies for delete
   using ( public.is_coordinator() );
@@ -79,22 +100,108 @@ create table if not exists public.student_profiles (
 
 alter table public.student_profiles enable row level security;
 
+drop policy if exists "Students can read own student profile" on public.student_profiles;
 create policy "Students can read own student profile"
   on public.student_profiles for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Students can insert own student profile" on public.student_profiles;
 create policy "Students can insert own student profile"
   on public.student_profiles for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Students can update own student profile" on public.student_profiles;
 create policy "Students can update own student profile"
   on public.student_profiles for update
   using (auth.uid() = user_id);
 
 -- Coordinators can view all student profiles
+drop policy if exists "Coordinators can view all student profiles" on public.student_profiles;
 create policy "Coordinators can view all student profiles"
   on public.student_profiles for select
   using ( public.is_coordinator() );
+
+-- 4. Company applications table
+create table if not exists public.company_applications (
+  id               uuid primary key default gen_random_uuid(),
+  company_id       uuid not null references public.companies(id) on delete cascade,
+  user_id          uuid not null references public.profiles(id) on delete cascade,
+  applicant_name   text not null,
+  applicant_email  text not null,
+  message          text,
+  resume_path      text not null,
+  resume_url       text,
+  created_at       timestamptz not null default now()
+);
+
+alter table public.company_applications enable row level security;
+
+drop policy if exists "Students can insert own company applications" on public.company_applications;
+create policy "Students can insert own company applications"
+  on public.company_applications for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Students can read own company applications" on public.company_applications;
+create policy "Students can read own company applications"
+  on public.company_applications for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Coordinators can read company applications" on public.company_applications;
+create policy "Coordinators can read company applications"
+  on public.company_applications for select
+  using (public.is_coordinator());
+
+-- 5. Storage buckets for company assets and candidate resumes
+insert into storage.buckets (id, name, public)
+values ('company-assets', 'company-assets', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('candidate-resumes', 'candidate-resumes', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Authenticated users can view company assets" on storage.objects;
+create policy "Authenticated users can view company assets"
+  on storage.objects for select
+  using (bucket_id = 'company-assets' and auth.role() = 'authenticated');
+
+drop policy if exists "Coordinators can upload company assets" on storage.objects;
+create policy "Coordinators can upload company assets"
+  on storage.objects for insert
+  with check (bucket_id = 'company-assets' and public.is_coordinator());
+
+drop policy if exists "Coordinators can update company assets" on storage.objects;
+create policy "Coordinators can update company assets"
+  on storage.objects for update
+  using (bucket_id = 'company-assets' and public.is_coordinator());
+
+drop policy if exists "Coordinators can delete company assets" on storage.objects;
+create policy "Coordinators can delete company assets"
+  on storage.objects for delete
+  using (bucket_id = 'company-assets' and public.is_coordinator());
+
+drop policy if exists "Students can upload own resumes" on storage.objects;
+create policy "Students can upload own resumes"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'candidate-resumes'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Students can view own resumes" on storage.objects;
+create policy "Students can view own resumes"
+  on storage.objects for select
+  using (
+    bucket_id = 'candidate-resumes'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Coordinators can view candidate resumes" on storage.objects;
+create policy "Coordinators can view candidate resumes"
+  on storage.objects for select
+  using (bucket_id = 'candidate-resumes' and public.is_coordinator());
 
 -- ═══════════════════════════════════════════════════════════════
 -- Trigger: auto-create a profile row when a new user signs up
@@ -129,10 +236,12 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists companies_updated_at on public.companies;
 create trigger companies_updated_at
   before update on public.companies
   for each row execute function public.update_updated_at();
 
+drop trigger if exists student_profiles_updated_at on public.student_profiles;
 create trigger student_profiles_updated_at
   before update on public.student_profiles
   for each row execute function public.update_updated_at();

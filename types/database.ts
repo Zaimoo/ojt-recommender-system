@@ -3,13 +3,14 @@
 // ─────────────────────────────────────────────────────────────
 
 export type UserRole = "student" | "coordinator";
+export type ProgramId = "BSIS" | "BSIT" | "BSCS" | "BSCA";
 
 export interface Profile {
   id: string; // FK → auth.users.id
   email: string;
   role: UserRole;
   full_name: string;
-  program_id: string | null;
+  program_id: ProgramId | null;
   created_at: string;
 }
 
@@ -17,8 +18,13 @@ export interface Company {
   id: string;
   name: string;
   description: string;
+  logo_url: string | null;
+  email_address: string | null;
+  location_address: string | null;
+  website_url: string | null;
+  contact_number: string | null;
   required_skills: string[];
-  eligibility_programs: string[];
+  eligibility_programs: ProgramId[];
   created_at: string;
   updated_at: string;
 }

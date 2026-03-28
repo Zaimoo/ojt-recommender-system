@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { AdminPanelClient } from "./client";
+import { createClient } from "@/lib/supabase/server";
+import { CoordinatorPanelClient } from "./client";
 
-export default async function AdminPage() {
+export default async function CoordinatorPage() {
   const supabase = await createClient();
 
   const {
@@ -11,7 +11,6 @@ export default async function AdminPage() {
 
   if (!user) redirect("/login");
 
-  // Fetch data in parallel
   const [profileRes, companiesRes, studentsRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase
@@ -25,7 +24,7 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <AdminPanelClient
+    <CoordinatorPanelClient
       profile={profileRes.data}
       companies={companiesRes.data ?? []}
       students={studentsRes.data ?? []}

@@ -9,6 +9,7 @@ import type { Company, RecommendationResult } from "@/types";
 const SIMILARITY_WEIGHT = 0.7;
 const PROGRAM_WEIGHT = 0.3;
 const PROGRAM_MATCH_BONUS = 100; // full marks when program matches
+const MAX_RECOMMENDATIONS = 10;
 
 interface StudentInput {
   technical_skills: string[];
@@ -55,5 +56,6 @@ export function generateRecommendations(
         hybridScore,
       } satisfies RecommendationResult;
     })
-    .sort((a, b) => b.hybridScore - a.hybridScore);
+    .sort((a, b) => b.hybridScore - a.hybridScore)
+    .slice(0, MAX_RECOMMENDATIONS);
 }

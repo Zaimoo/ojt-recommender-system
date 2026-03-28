@@ -13,7 +13,8 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("full_name") as string;
-  const role = (formData.get("role") as string) || "student";
+  const requestedRole = (formData.get("role") as string) || "student";
+  const role = requestedRole === "coordinator" ? "coordinator" : "student";
 
   try {
     const { error } = await supabase.auth.signUp({
@@ -28,7 +29,9 @@ export async function signUp(formData: FormData) {
       return { error: error.message };
     }
 
-    return { redirectTo: role === "coordinator" ? "/admin" : "/dashboard" };
+    return {
+      redirectTo: role === "coordinator" ? "/coordinator" : "/dashboard",
+    };
   } catch (err) {
     console.error("[signUp] Unexpected error:", err);
     return { error: "Something went wrong. Please try again." };
@@ -63,8 +66,9 @@ export async function signIn(formData: FormData) {
         .eq("id", user.id)
         .single();
 
+      const role = profile?.role;
       return {
-        redirectTo: profile?.role === "coordinator" ? "/admin" : "/dashboard",
+        redirectTo: role === "coordinator" ? "/coordinator" : "/dashboard",
       };
     }
 

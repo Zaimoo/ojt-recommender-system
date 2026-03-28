@@ -41,7 +41,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
+    <div className="flex min-h-screen items-center justify-center bg-white p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Create Account</CardTitle>
@@ -50,7 +50,7 @@ export default function RegisterPage() {
         <form action={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
                 {error}
               </div>
             )}
@@ -89,7 +89,7 @@ export default function RegisterPage() {
               <select
                 id="role"
                 name="role"
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950"
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 defaultValue="student"
               >
                 <option value="student">Student</option>
@@ -106,7 +106,7 @@ export default function RegisterPage() {
               Already have an account?{" "}
               <Link
                 href="/login"
-                className="font-medium text-blue-600 underline dark:text-blue-400"
+                className="font-medium text-blue-600 underline"
               >
                 Sign In
               </Link>

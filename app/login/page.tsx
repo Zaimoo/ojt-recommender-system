@@ -41,7 +41,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
+    <div className="flex min-h-screen items-center justify-center bg-white p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
@@ -52,7 +52,7 @@ export default function LoginPage() {
         <form action={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
                 {error}
               </div>
             )}
@@ -86,7 +86,7 @@ export default function LoginPage() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/register"
-                className="font-medium text-blue-600 underline dark:text-blue-400"
+                className="font-medium text-blue-600 underline"
               >
                 Register
               </Link>

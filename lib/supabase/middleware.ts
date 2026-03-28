@@ -29,16 +29,18 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refresh the session (important!)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const isProtectedPath =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/coordinator") ||
+    pathname.startsWith("/companyDetails");
 
-  // ── Unauthenticated users ────────────────────────────────
   if (!user) {
-    if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+    if (isProtectedPath) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
@@ -46,7 +48,6 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // ── Authenticated – fetch role ───────────────────────────
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -55,11 +56,7 @@ export async function updateSession(request: NextRequest) {
 
   const role = profile?.role as string | undefined;
 
-  // If no profile/role exists yet (schema not run, or trigger hasn't
-  // created the row), let the user through rather than redirect-looping.
   if (!role) {
-    // Still redirect away from auth pages so they don't sit on /login
-    // while authenticated, but send them to /dashboard as a safe default.
     if (pathname === "/login" || pathname === "/register") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
@@ -68,24 +65,23 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Students may not access /admin
-  if (pathname.startsWith("/admin") && role !== "coordinator") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  if (pathname.startsWith("/coordinator")) {
+    if (role !== "coordinator") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Coordinators may not access /dashboard (student area)
   if (pathname.startsWith("/dashboard") && role !== "student") {
     const url = request.nextUrl.clone();
-    url.pathname = "/admin";
+    url.pathname = "/coordinator";
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged-in users away from auth pages
   if (pathname === "/login" || pathname === "/register") {
     const url = request.nextUrl.clone();
-    url.pathname = role === "coordinator" ? "/admin" : "/dashboard";
+    url.pathname = role === "coordinator" ? "/coordinator" : "/dashboard";
     return NextResponse.redirect(url);
   }
 
