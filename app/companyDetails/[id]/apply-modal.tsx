@@ -61,11 +61,7 @@ export function ApplyModal({ companyId, companyName }: Props) {
               </Button>
             </div>
 
-            <form
-              action={handleApply}
-              encType="multipart/form-data"
-              className="space-y-4"
-            >
+            <form action={handleApply} className="space-y-4">
               <input type="hidden" name="company_id" value={companyId} />
 
               <div className="space-y-2">

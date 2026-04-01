@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export type ApplyActionResult = { success: true } | { error: string };
-type ApplySuccess = { success: true; warning?: string };
+export type ApplyActionResult =
+  | { success: true; warning?: string }
+  | { error: string };
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -16,7 +17,7 @@ function toBase64(buffer: ArrayBuffer): string {
 
 export async function applyToCompany(
   formData: FormData,
-): Promise<ApplyActionResult | ApplySuccess> {
+): Promise<ApplyActionResult> {
   const supabase = await createClient();
 
   const {
@@ -82,15 +83,24 @@ export async function applyToCompany(
     return { error: `Failed to save application: ${insertError.message}` };
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY;
+  const brevoApiKey = process.env.BREVO_API_KEY?.trim();
   const senderEmail = process.env.APP_MAIL_FROM;
 
-  if (!resendApiKey) {
+  if (!brevoApiKey) {
     revalidatePath(`/companyDetails/${companyId}`);
     return {
       success: true,
       warning:
-        "Application saved, but email was not sent. Set RESEND_API_KEY in environment.",
+        "Application saved, but email was not sent. Set BREVO_API_KEY in environment.",
+    };
+  }
+
+  if (!brevoApiKey.startsWith("xkeysib-")) {
+    revalidatePath(`/companyDetails/${companyId}`);
+    return {
+      success: true,
+      warning:
+        "Application saved, but email was not sent. BREVO_API_KEY must be a Brevo API key (xkeysib-...), not SMTP or another provider key.",
     };
   }
 
@@ -99,32 +109,41 @@ export async function applyToCompany(
     return {
       success: true,
       warning:
-        "Application saved, but email was not sent. Set APP_MAIL_FROM to a verified sender domain in Resend.",
+        "Application saved, but email was not sent. Set APP_MAIL_FROM to a verified sender in Brevo.",
     };
   }
 
   const resumeBuffer = await resume.arrayBuffer();
   const attachmentContent = toBase64(resumeBuffer);
 
-  const emailResponse = await fetch("https://api.resend.com/emails", {
+  const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${resendApiKey}`,
+      "api-key": brevoApiKey,
+      accept: "application/json",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: senderEmail,
-      to: [company.email_address],
+      sender: {
+        email: senderEmail,
+        name: "OJT Recommender",
+      },
+      to: [{ email: company.email_address }],
+      replyTo: {
+        email: applicantEmail,
+        name: fullName,
+      },
       subject: `New OJT Application - ${fullName}`,
-      html: `
+      htmlContent: `
         <p><strong>Applicant:</strong> ${fullName}</p>
         <p><strong>Email:</strong> ${applicantEmail}</p>
         <p><strong>Company:</strong> ${company.name}</p>
         <p><strong>Message:</strong> ${message ?? "(No message provided)"}</p>
+        <p><strong>Resume URL:</strong> <a href="${resumeUrl}">${resumeUrl}</a></p>
       `,
-      attachments: [
+      attachment: [
         {
-          filename: resume.name,
+          name: resume.name,
           content: attachmentContent,
         },
       ],

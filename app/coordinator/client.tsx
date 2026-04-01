@@ -203,7 +203,6 @@ export function CoordinatorPanelClient({
             {(showForm || editingId) && (
               <form
                 action={editingId ? handleUpdate : handleCreate}
-                encType="multipart/form-data"
                 className="space-y-4 rounded-lg border border-slate-200 p-4"
               >
                 <div className="flex items-center justify-between">
