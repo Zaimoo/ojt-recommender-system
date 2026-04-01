@@ -7,6 +7,8 @@ export type ApplyActionResult =
   | { success: true; warning?: string }
   | { error: string };
 
+const MAX_RESUME_SIZE_BYTES = 8 * 1024 * 1024;
+
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
@@ -37,6 +39,9 @@ export async function applyToCompany(
   if (!applicantEmail) return { error: "Email is required." };
   if (!(resume instanceof File) || resume.size === 0) {
     return { error: "Please upload your CV/Resume." };
+  }
+  if (resume.size > MAX_RESUME_SIZE_BYTES) {
+    return { error: "Resume file is too large. Maximum allowed size is 8 MB." };
   }
 
   const { data: company, error: companyError } = await supabase

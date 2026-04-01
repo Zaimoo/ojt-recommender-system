@@ -12,6 +12,8 @@ interface Props {
   companyName: string;
 }
 
+const MAX_RESUME_SIZE_BYTES = 8 * 1024 * 1024;
+
 export function ApplyModal({ companyId, companyName }: Props) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -24,6 +26,14 @@ export function ApplyModal({ companyId, companyName }: Props) {
     setPending(true);
     setStatus(null);
     setStatusType("success");
+
+    const resume = formData.get("resume");
+    if (resume instanceof File && resume.size > MAX_RESUME_SIZE_BYTES) {
+      setStatusType("error");
+      setStatus("Resume file is too large. Maximum allowed size is 8 MB.");
+      setPending(false);
+      return;
+    }
 
     const res = await applyToCompany(formData);
     if ("error" in res) {
@@ -92,6 +102,9 @@ export function ApplyModal({ companyId, companyName }: Props) {
                   accept=".pdf,.doc,.docx"
                   required
                 />
+                <p className="text-xs text-slate-500">
+                  Maximum file size: 8 MB.
+                </p>
               </div>
 
               {status && (
