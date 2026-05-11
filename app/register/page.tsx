@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/app/actions/auth";
+import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [role, setRole] = useState("student");
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
@@ -91,11 +93,53 @@ export default function RegisterPage() {
                 name="role"
                 className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 defaultValue="student"
+                onChange={(event) => setRole(event.target.value)}
               >
                 <option value="student">Student</option>
                 <option value="coordinator">Coordinator</option>
               </select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_number">Contact Number</Label>
+              <Input
+                id="contact_number"
+                name="contact_number"
+                placeholder="+63 9xx xxx xxxx"
+                required
+              />
+            </div>
+            {role === "student" && (
+              <div className="space-y-2">
+                <Label htmlFor="student_id">Student ID Number</Label>
+                <Input
+                  id="student_id"
+                  name="student_id"
+                  placeholder="2024-00001"
+                  required
+                />
+              </div>
+            )}
+            {role === "coordinator" && (
+              <div className="space-y-2">
+                <Label htmlFor="assigned_program">Assigned Program</Label>
+                <select
+                  id="assigned_program"
+                  name="assigned_program"
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  defaultValue=""
+                  required
+                >
+                  <option value="" disabled>
+                    Select program
+                  </option>
+                  {PROGRAM_OPTIONS.map((program) => (
+                    <option key={program} value={program}>
+                      {program}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full" disabled={pending}>

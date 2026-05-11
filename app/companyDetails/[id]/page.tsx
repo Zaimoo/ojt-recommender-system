@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApplyModal } from "./apply-modal";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -40,7 +39,12 @@ export default async function CompanyDetailsPage({ params }: Props) {
               <CardTitle className="text-2xl text-slate-900">
                 {company.name}
               </CardTitle>
-              <ApplyModal companyId={company.id} companyName={company.name} />
+              <Link
+                href={`/companyDetails/${company.id}/apply`}
+                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                Apply
+              </Link>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -59,7 +63,7 @@ export default async function CompanyDetailsPage({ params }: Props) {
             )}
 
             <p className="text-slate-700">
-              {company.description || "No description available."}
+              {company.company_overview || "No description available."}
             </p>
 
             <div className="grid gap-4 md:grid-cols-2">

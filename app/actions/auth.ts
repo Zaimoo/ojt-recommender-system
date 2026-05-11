@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { PROGRAM_OPTIONS, type ProgramOption } from "@/lib/constants/programs";
 import { redirect } from "next/navigation";
 
 // ─────────────────────────────────────────────────────────────
@@ -13,15 +14,34 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("full_name") as string;
+  const contactNumber = (formData.get("contact_number") as string) ?? "";
+  const studentId = (formData.get("student_id") as string) ?? "";
+  const assignedProgram = (formData.get("assigned_program") as string) ?? "";
   const requestedRole = (formData.get("role") as string) || "student";
   const role = requestedRole === "coordinator" ? "coordinator" : "student";
+
+  const programId = assignedProgram.trim().toUpperCase() as ProgramOption;
+
+  if (role === "student" && !studentId.trim()) {
+    return { error: "Student ID number is required." };
+  }
+
+  if (role === "coordinator" && !PROGRAM_OPTIONS.includes(programId)) {
+    return { error: "Please select an assigned program." };
+  }
 
   try {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role },
+        data: {
+          full_name: fullName,
+          role,
+          contact_number: contactNumber.trim(),
+          student_id: studentId.trim(),
+          program_id: role === "coordinator" ? programId : null,
+        },
       },
     });
 

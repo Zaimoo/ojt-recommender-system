@@ -10,8 +10,13 @@ create table if not exists public.profiles (
   role        text not null default 'student' check (role in ('student', 'coordinator')),
   full_name   text not null default '',
   program_id  text check (program_id in ('BSIS', 'BSIT', 'BSCS', 'BSCA')),
+  contact_number text,
+  student_id  text,
   created_at  timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists contact_number text;
+alter table public.profiles add column if not exists student_id text;
 
 alter table public.profiles enable row level security;
 
@@ -209,12 +214,15 @@ create policy "Coordinators can view candidate resumes"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, role, full_name)
+  insert into public.profiles (id, email, role, full_name, program_id, contact_number, student_id)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'role', 'student'),
-    coalesce(new.raw_user_meta_data ->> 'full_name', '')
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    nullif(new.raw_user_meta_data ->> 'program_id', ''),
+    nullif(new.raw_user_meta_data ->> 'contact_number', ''),
+    nullif(new.raw_user_meta_data ->> 'student_id', '')
   );
   return new;
 end;

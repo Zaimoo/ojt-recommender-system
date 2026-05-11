@@ -11,23 +11,31 @@ export default async function CoordinatorPage() {
 
   if (!user) redirect("/login");
 
-  const [profileRes, companiesRes, studentsRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase
-      .from("companies")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, program_id")
-      .eq("role", "student"),
-  ]);
+  const [profileRes, companiesRes, allStudentsRes, latestStudentsRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      supabase
+        .from("companies")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, program_id")
+        .eq("role", "student"),
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, program_id, created_at")
+        .eq("role", "student")
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
 
   return (
     <CoordinatorPanelClient
       profile={profileRes.data}
       companies={companiesRes.data ?? []}
-      students={studentsRes.data ?? []}
+      allStudents={allStudentsRes.data ?? []}
+      latestStudents={latestStudentsRes.data ?? []}
     />
   );
 }

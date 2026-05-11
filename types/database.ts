@@ -11,13 +11,15 @@ export interface Profile {
   role: UserRole;
   full_name: string;
   program_id: ProgramId | null;
+  contact_number: string | null;
+  student_id: string | null;
   created_at: string;
 }
 
 export interface Company {
   id: string;
   name: string;
-  description: string;
+  company_overview: string;
   logo_url: string | null;
   email_address: string | null;
   location_address: string | null;

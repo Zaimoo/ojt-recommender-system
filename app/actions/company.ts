@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type CompanyPayload = {
   name: string;
-  description: string;
+  company_overview: string;
   logo_url: string | null;
   email_address: string | null;
   location_address: string | null;
@@ -66,7 +66,8 @@ async function uploadCompanyImage(
 
 function parseCompanyPayload(formData: FormData): ParseCompanyPayloadResult {
   const name = (formData.get("name") as string)?.trim();
-  const description = (formData.get("description") as string)?.trim() ?? "";
+  const companyOverview =
+    (formData.get("company_overview") as string)?.trim() ?? "";
   const requiredSkillsRaw = (formData.get("required_skills") as string) ?? "";
   const selectedPrograms = formData
     .getAll("eligibility_programs")
@@ -84,7 +85,7 @@ function parseCompanyPayload(formData: FormData): ParseCompanyPayloadResult {
     ok: true,
     payload: {
       name,
-      description,
+      company_overview: companyOverview,
       logo_url: existingLogoUrl,
       email_address: optionalText(formData.get("email_address")),
       location_address: optionalText(formData.get("location_address")),

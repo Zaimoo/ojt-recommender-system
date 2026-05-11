@@ -22,7 +22,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function 
+  handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
     try {
