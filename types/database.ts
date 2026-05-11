@@ -40,6 +40,19 @@ export interface StudentProfile {
   updated_at: string;
 }
 
+export interface CompanyApplication {
+  id: string;
+  company_id: string;
+  user_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  message: string | null;
+  status: string;
+  resume_path: string;
+  resume_url: string | null;
+  created_at: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Composite / view types used by the UI
 // ─────────────────────────────────────────────────────────────
@@ -74,6 +87,11 @@ export interface Database {
         Update: Partial<
           Omit<StudentProfile, "id" | "created_at" | "updated_at">
         >;
+      };
+      company_applications: {
+        Row: CompanyApplication;
+        Insert: Omit<CompanyApplication, "id" | "created_at">;
+        Update: Partial<Omit<CompanyApplication, "id" | "created_at">>;
       };
     };
   };

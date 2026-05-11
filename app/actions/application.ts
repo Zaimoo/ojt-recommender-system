@@ -80,6 +80,7 @@ export async function applyToCompany(
       applicant_name: fullName,
       applicant_email: applicantEmail,
       message,
+      status: "submitted",
       resume_path: storagePath,
       resume_url: resumeUrl,
     });

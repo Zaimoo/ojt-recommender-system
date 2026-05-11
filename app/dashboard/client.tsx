@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { signOut } from "@/app/actions/auth";
 import {
   updateStudentSkills,
   updateStudentProgram,
@@ -23,14 +22,12 @@ import {
 } from "@/components/ui/card";
 import {
   Sparkles,
-  LogOut,
-  User,
-  Briefcase,
   CheckCircle,
   AlertCircle,
   BarChart3,
   ArrowUpRight,
 } from "lucide-react";
+import { StudentSidebar } from "./_components/student-sidebar";
 import type { Profile, StudentProfile, RecommendationResult } from "@/types";
 
 interface Props {
@@ -46,6 +43,11 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
   const [recError, setRecError] = useState<string | null>(null);
   const [skillMsg, setSkillMsg] = useState<string | null>(null);
   const [programMsg, setProgramMsg] = useState<string | null>(null);
+  const [lastSkillsUpdate, setLastSkillsUpdate] = useState<string | null>(null);
+  const [lastProgramUpdate, setLastProgramUpdate] = useState<string | null>(
+    null,
+  );
+  const [lastRecRun, setLastRecRun] = useState<string | null>(null);
 
   async function handleGenerateRecommendations() {
     setLoading(true);
@@ -55,6 +57,7 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
       setRecError(result.error);
     } else {
       setRecommendations(result.data ?? []);
+      setLastRecRun(new Date().toISOString());
     }
     setLoading(false);
   }
@@ -62,11 +65,13 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
   async function handleSkillsSubmit(formData: FormData) {
     const res = await updateStudentSkills(formData);
     setSkillMsg(res?.error ?? "Skills updated!");
+    if (!res?.error) setLastSkillsUpdate(new Date().toISOString());
   }
 
   async function handleProgramSubmit(formData: FormData) {
     const res = await updateStudentProgram(formData);
     setProgramMsg(res?.error ?? "Program updated!");
+    if (!res?.error) setLastProgramUpdate(new Date().toISOString());
   }
 
   function scoreBadgeVariant(score: number) {
@@ -79,6 +84,16 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
     if (!text) return "No description provided.";
     if (text.length <= maxLength) return text;
     return `${text.slice(0, maxLength).trim()}...`;
+  }
+
+  function formatTimestamp(value: string | null) {
+    if (!value) return "Not yet";
+    return new Date(value).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
   }
 
   const insights = useMemo(() => {
@@ -98,64 +113,28 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
     };
   }, [recommendations]);
 
+  const completionItems = [
+    { label: "Full name", done: !!profile?.full_name },
+    { label: "Contact number", done: !!profile?.contact_number },
+    { label: "Student ID", done: !!profile?.student_id },
+    { label: "Program", done: !!profile?.program_id },
+    {
+      label: "Skills",
+      done: (studentProfile?.technical_skills?.length ?? 0) > 0,
+    },
+    { label: "Project experience", done: !!studentProfile?.project_exp },
+  ];
+  const completedCount = completionItems.filter((item) => item.done).length;
+  const completionPercent = Math.round(
+    (completedCount / completionItems.length) * 100,
+  );
+  const missingItems = completionItems
+    .filter((item) => !item.done)
+    .map((item) => item.label);
+
   return (
     <div className="flex min-h-screen bg-slate-100">
-      <aside className="flex w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 bg-slate-50 p-6">
-          <div className="flex items-center gap-3 pb-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-2 text-blue-600 shadow-sm">
-              <Briefcase className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold text-slate-900">
-                Student Dashboard
-              </h1>
-              <p className="text-xs text-slate-500">OJT Recommender</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
-              {(profile?.full_name ||
-                profile?.email ||
-                "U")?.[0]?.toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-slate-900">
-                {profile?.full_name || profile?.email || "User"}
-              </p>
-              <p className="truncate text-xs text-slate-500">Student</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-2 p-4">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 shadow-sm"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/dashboard/account"
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900"
-          >
-            Account Settings
-          </Link>
-        </nav>
-
-        <div className="border-t border-slate-200 p-4">
-          <form action={signOut} className="w-full">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-              type="submit"
-            >
-              <LogOut className="mr-2 h-4 w-4" /> Sign Out
-            </Button>
-          </form>
-        </div>
-      </aside>
+      <StudentSidebar profile={profile} active="dashboard" />
 
       <div className="flex-1">
         <header className="border-b border-slate-200 bg-white shadow-sm">
@@ -167,6 +146,75 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
         </header>
 
         <main className="space-y-6 p-6 md:p-8">
+          <div className="grid gap-4 md:grid-cols-[1.1fr_1fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Profile Completion</CardTitle>
+                <CardDescription>
+                  Complete your profile to improve recommendations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-600">Progress</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {completionPercent}%
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-100">
+                  <div
+                    className="h-2 rounded-full bg-blue-600"
+                    style={{ width: `${completionPercent}%` }}
+                  />
+                </div>
+                {missingItems.length === 0 ? (
+                  <p className="text-sm text-emerald-600">
+                    Your profile is complete.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-slate-600">Missing:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {missingItems.map((item) => (
+                        <Badge key={item} variant="secondary">
+                          {item}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recent Activity</CardTitle>
+                <CardDescription>
+                  Latest changes in your account.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Skills updated</span>
+                  <span className="font-medium text-slate-900">
+                    {formatTimestamp(lastSkillsUpdate)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Program updated</span>
+                  <span className="font-medium text-slate-900">
+                    {formatTimestamp(lastProgramUpdate)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Recommendations run</span>
+                  <span className="font-medium text-slate-900">
+                    {formatTimestamp(lastRecRun)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
           <div id="skills" className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>

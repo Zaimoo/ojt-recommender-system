@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signOut } from "@/app/actions/auth";
 import {
   createCompany,
   updateCompany,
@@ -22,9 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  LogOut,
-  User,
-  Briefcase,
   Plus,
   Pencil,
   Trash2,
@@ -34,6 +30,7 @@ import {
   LayoutDashboard,
   GraduationCap,
 } from "lucide-react";
+import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
 import type { Profile, Company, ProgramId } from "@/types";
 
 interface StudentSummary {
@@ -52,6 +49,7 @@ interface Props {
   companies: Company[];
   allStudents: StudentSummary[];
   latestStudents: StudentWithTimestamp[];
+  initialTab?: string;
 }
 
 export function CoordinatorPanelClient({
@@ -59,10 +57,15 @@ export function CoordinatorPanelClient({
   companies,
   allStudents,
   latestStudents,
+  initialTab,
 }: Props) {
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "students" | "companies"
-  >("dashboard");
+  >(
+    initialTab === "students" || initialTab === "companies"
+      ? initialTab
+      : "dashboard",
+  );
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMsg, setFormMsg] = useState<string | null>(null);
@@ -115,71 +118,11 @@ export function CoordinatorPanelClient({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r border-slate-200 bg-white">
-        <div className="border-b border-slate-200 p-4">
-          <div className="flex items-center gap-2 pb-3">
-            <Briefcase className="h-6 w-6 text-blue-600" />
-            <h1 className="text-sm font-semibold text-slate-800">
-              Coordinator Panel
-            </h1>
-          </div>
-          <p className="flex items-center gap-2 text-sm text-slate-700">
-            <User className="h-3 w-3" />
-            {profile?.full_name || profile?.email || "User"}
-          </p>
-        </div>
-
-        <nav className="flex-1 space-y-1 p-4">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`flex w-full items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === "dashboard"
-                ? "bg-blue-50 text-blue-700"
-                : "text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`flex w-full items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === "students"
-                ? "bg-blue-50 text-blue-700"
-                : "text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <GraduationCap className="h-4 w-4" />
-            Students
-          </button>
-          <button
-            onClick={() => setActiveTab("companies")}
-            className={`flex w-full items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === "companies"
-                ? "bg-blue-50 text-blue-700"
-                : "text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <Building2 className="h-4 w-4" />
-            Companies
-          </button>
-          <Link
-            href="/coordinator/account"
-            className="flex items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Account Settings
-          </Link>
-        </nav>
-
-        <div className="border-t border-slate-200 p-4">
-          <form action={signOut}>
-            <Button variant="ghost" size="sm" className="w-full justify-start">
-              <LogOut className="mr-2 h-4 w-4" /> Sign Out
-            </Button>
-          </form>
-        </div>
-      </aside>
+      <CoordinatorSidebar
+        profile={profile}
+        active={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       {/* Main Content */}
       <div className="flex-1">

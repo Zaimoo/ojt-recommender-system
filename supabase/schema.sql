@@ -134,10 +134,13 @@ create table if not exists public.company_applications (
   applicant_name   text not null,
   applicant_email  text not null,
   message          text,
+  status           text not null default 'submitted',
   resume_path      text not null,
   resume_url       text,
   created_at       timestamptz not null default now()
 );
+
+alter table public.company_applications add column if not exists status text default 'submitted';
 
 alter table public.company_applications enable row level security;
 

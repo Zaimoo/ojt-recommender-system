@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CoordinatorPanelClient } from "./client";
 
-export default async function CoordinatorPage() {
+interface Props {
+  searchParams?: { tab?: string };
+}
+
+export default async function CoordinatorPage({ searchParams }: Props) {
   const supabase = await createClient();
 
   const {
@@ -36,6 +40,7 @@ export default async function CoordinatorPage() {
       companies={companiesRes.data ?? []}
       allStudents={allStudentsRes.data ?? []}
       latestStudents={latestStudentsRes.data ?? []}
+      initialTab={searchParams?.tab}
     />
   );
 }
