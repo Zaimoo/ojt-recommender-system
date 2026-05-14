@@ -12,8 +12,6 @@ interface Props {
   companyName: string;
 }
 
-const MAX_RESUME_SIZE_BYTES = 8 * 1024 * 1024;
-
 export function ApplyForm({ companyId, companyName }: Props) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -36,15 +34,6 @@ export function ApplyForm({ companyId, companyName }: Props) {
     setStatusType("success");
 
     const formData = new FormData(formRef.current);
-    const resume = formData.get("resume");
-
-    if (resume instanceof File && resume.size > MAX_RESUME_SIZE_BYTES) {
-      setStatusType("error");
-      setStatus("Resume file is too large. Maximum allowed size is 8 MB.");
-      setPending(false);
-      setConfirmOpen(false);
-      return;
-    }
 
     const res = await applyToCompany(formData);
     if ("error" in res) {
@@ -94,16 +83,19 @@ export function ApplyForm({ companyId, companyName }: Props) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="resume">CV / Resume</Label>
+          <Label htmlFor="cover_letter">Cover Letter (PDF/DOC)</Label>
           <Input
-            id="resume"
-            name="resume"
+            id="cover_letter"
+            name="cover_letter"
             type="file"
             accept=".pdf,.doc,.docx"
             required
           />
-          <p className="text-xs text-slate-500">Maximum file size: 8 MB.</p>
         </div>
+
+        <p className="text-xs text-slate-500">
+          Your saved resume from Account Settings will be attached.
+        </p>
 
         {status && (
           <p

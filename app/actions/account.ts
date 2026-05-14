@@ -29,6 +29,7 @@ export async function updateAccount(
   const assignedProgram = (formData.get("assigned_program") as string)?.trim();
   const newEmail = (formData.get("email") as string)?.trim();
   const newPassword = (formData.get("new_password") as string) ?? "";
+  const resume = formData.get("resume");
 
   if (assignedProgram) {
     const programId = assignedProgram.toUpperCase() as ProgramOption;
@@ -56,6 +57,27 @@ export async function updateAccount(
   if (typeof studentId === "string") updates.student_id = studentId;
   if (newEmail) updates.email = newEmail;
   if (assignedProgram) updates.program_id = assignedProgram.toUpperCase();
+
+  if (resume instanceof File && resume.size > 0) {
+    const safeName = resume.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `${user.id}/resume-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("candidate-resumes")
+      .upload(storagePath, resume, {
+        upsert: true,
+        contentType: resume.type || "application/octet-stream",
+      });
+
+    if (uploadError) return { error: uploadError.message };
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("candidate-resumes").getPublicUrl(storagePath);
+
+    updates.resume_path = storagePath;
+    updates.resume_url = publicUrl;
+  }
 
   if (Object.keys(updates).length > 0) {
     const { error } = await supabase

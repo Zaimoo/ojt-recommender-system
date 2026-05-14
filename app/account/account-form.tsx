@@ -83,6 +83,32 @@ export function AccountForm({ profile }: Props) {
             </div>
           )}
 
+          {profile?.role === "student" && (
+            <div className="space-y-2">
+              <Label htmlFor="resume">Resume (PDF/DOC)</Label>
+              <Input
+                id="resume"
+                name="resume"
+                type="file"
+                accept=".pdf,.doc,.docx"
+              />
+              {profile?.resume_url ? (
+                <a
+                  href={profile.resume_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-blue-600 underline"
+                >
+                  View current resume
+                </a>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  No resume uploaded yet.
+                </p>
+              )}
+            </div>
+          )}
+
           {profile?.role === "coordinator" && (
             <div className="space-y-2">
               <Label htmlFor="assigned_program">Assigned Program</Label>

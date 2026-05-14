@@ -33,9 +33,14 @@ import type { Profile, StudentProfile, RecommendationResult } from "@/types";
 interface Props {
   profile: Profile | null;
   studentProfile: StudentProfile | null;
+  skillSuggestions: string[];
 }
 
-export function StudentDashboardClient({ profile, studentProfile }: Props) {
+export function StudentDashboardClient({
+  profile,
+  studentProfile,
+  skillSuggestions,
+}: Props) {
   const [recommendations, setRecommendations] = useState<
     RecommendationResult[]
   >([]);
@@ -231,10 +236,16 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
                       id="technical_skills"
                       name="technical_skills"
                       placeholder="React, Python, SQL, Figma"
+                      list="technical-skills-suggestions"
                       defaultValue={
                         studentProfile?.technical_skills?.join(", ") ?? ""
                       }
                     />
+                    <datalist id="technical-skills-suggestions">
+                      {skillSuggestions.map((skill) => (
+                        <option key={skill} value={skill} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="project_exp">Project Experience</Label>

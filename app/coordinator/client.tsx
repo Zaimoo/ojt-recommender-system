@@ -59,6 +59,9 @@ export function CoordinatorPanelClient({
   latestStudents,
   initialTab,
 }: Props) {
+  const skillSuggestions = Array.from(
+    new Set(companies.flatMap((company) => company.required_skills ?? [])),
+  ).sort((a, b) => a.localeCompare(b));
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "students" | "companies"
   >(
@@ -387,10 +390,16 @@ export function CoordinatorPanelClient({
                       <Input
                         name="required_skills"
                         placeholder="React, Node.js, SQL"
+                        list="required-skills-suggestions"
                         defaultValue={
                           editingCompany?.required_skills?.join(", ") ?? ""
                         }
                       />
+                      <datalist id="required-skills-suggestions">
+                        {skillSuggestions.map((skill) => (
+                          <option key={skill} value={skill} />
+                        ))}
+                      </datalist>
                     </div>
 
                     <div className="space-y-2">

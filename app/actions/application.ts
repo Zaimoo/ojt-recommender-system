@@ -7,7 +7,7 @@ export type ApplyActionResult =
   | { success: true; warning?: string }
   | { error: string };
 
-const MAX_RESUME_SIZE_BYTES = 8 * 1024 * 1024;
+const MAX_COVER_LETTER_SIZE_BYTES = 8 * 1024 * 1024;
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -32,16 +32,27 @@ export async function applyToCompany(
   const fullName = (formData.get("full_name") as string)?.trim();
   const applicantEmail = (formData.get("email") as string)?.trim();
   const message = (formData.get("message") as string)?.trim() || null;
-  const resume = formData.get("resume");
+  const coverLetter = formData.get("cover_letter");
 
   if (!companyId) return { error: "Missing company ID." };
   if (!fullName) return { error: "Full name is required." };
   if (!applicantEmail) return { error: "Email is required." };
-  if (!(resume instanceof File) || resume.size === 0) {
-    return { error: "Please upload your CV/Resume." };
+  if (!(coverLetter instanceof File) || coverLetter.size === 0) {
+    return { error: "Please upload your cover letter." };
   }
-  if (resume.size > MAX_RESUME_SIZE_BYTES) {
-    return { error: "Resume file is too large. Maximum allowed size is 8 MB." };
+  if (coverLetter.size > MAX_COVER_LETTER_SIZE_BYTES) {
+    return {
+      error: "Cover letter file is too large. Maximum allowed size is 8 MB.",
+    };
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("resume_path, resume_url")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.resume_path || !profile?.resume_url) {
+    return { error: "Please upload your resume in Account Settings first." };
   }
 
   const { data: company, error: companyError } = await supabase
@@ -55,22 +66,26 @@ export async function applyToCompany(
     return { error: "This company has no email address configured." };
   }
 
-  const safeName = sanitizeFileName(resume.name);
-  const storagePath = `${user.id}/${Date.now()}-${safeName}`;
+  const resumeUrl = profile.resume_url;
+  const storagePath = profile.resume_path;
 
-  const { error: uploadError } = await supabase.storage
+  const coverSafeName = sanitizeFileName(coverLetter.name);
+  const coverLetterPath = `${user.id}/cover-letter-${Date.now()}-${coverSafeName}`;
+
+  const { error: coverUploadError } = await supabase.storage
     .from("candidate-resumes")
-    .upload(storagePath, resume, {
+    .upload(coverLetterPath, coverLetter, {
       upsert: false,
-      contentType: resume.type || "application/octet-stream",
+      contentType: coverLetter.type || "application/octet-stream",
     });
 
-  if (uploadError)
-    return { error: `Resume upload failed: ${uploadError.message}` };
+  if (coverUploadError) {
+    return { error: `Cover letter upload failed: ${coverUploadError.message}` };
+  }
 
   const {
-    data: { publicUrl: resumeUrl },
-  } = supabase.storage.from("candidate-resumes").getPublicUrl(storagePath);
+    data: { publicUrl: coverLetterUrl },
+  } = supabase.storage.from("candidate-resumes").getPublicUrl(coverLetterPath);
 
   const { error: insertError } = await supabase
     .from("company_applications")
@@ -83,6 +98,8 @@ export async function applyToCompany(
       status: "submitted",
       resume_path: storagePath,
       resume_url: resumeUrl,
+      cover_letter_path: coverLetterPath,
+      cover_letter_url: coverLetterUrl,
     });
 
   if (insertError) {
@@ -119,8 +136,37 @@ export async function applyToCompany(
     };
   }
 
-  const resumeBuffer = await resume.arrayBuffer();
-  const attachmentContent = toBase64(resumeBuffer);
+  let attachmentWarning: string | undefined;
+
+  const resumeResponse = await fetch(resumeUrl);
+  if (!resumeResponse.ok) {
+    attachmentWarning =
+      "Application saved, but email failed to attach the resume. Please contact the company directly.";
+  }
+
+  const coverResponse = await fetch(coverLetterUrl);
+  if (!coverResponse.ok) {
+    attachmentWarning =
+      "Application saved, but email failed to attach the cover letter. Please contact the company directly.";
+  }
+
+  const attachments: Array<{ name: string; content: string }> = [];
+
+  if (resumeResponse.ok) {
+    const resumeBuffer = await resumeResponse.arrayBuffer();
+    attachments.push({
+      name: storagePath.split("/").slice(-1)[0],
+      content: toBase64(resumeBuffer),
+    });
+  }
+
+  if (coverResponse.ok) {
+    const coverBuffer = await coverResponse.arrayBuffer();
+    attachments.push({
+      name: coverLetterPath.split("/").slice(-1)[0],
+      content: toBase64(coverBuffer),
+    });
+  }
 
   const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -146,13 +192,9 @@ export async function applyToCompany(
         <p><strong>Company:</strong> ${company.name}</p>
         <p><strong>Message:</strong> ${message ?? "(No message provided)"}</p>
         <p><strong>Resume URL:</strong> <a href="${resumeUrl}">${resumeUrl}</a></p>
+        <p><strong>Cover Letter URL:</strong> <a href="${coverLetterUrl}">${coverLetterUrl}</a></p>
       `,
-      attachment: [
-        {
-          name: resume.name,
-          content: attachmentContent,
-        },
-      ],
+      attachment: attachments,
     }),
   });
 
@@ -166,5 +208,8 @@ export async function applyToCompany(
   }
 
   revalidatePath(`/companyDetails/${companyId}`);
+  if (attachmentWarning) {
+    return { success: true, warning: attachmentWarning };
+  }
   return { success: true };
 }

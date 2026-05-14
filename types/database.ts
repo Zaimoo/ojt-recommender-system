@@ -13,6 +13,8 @@ export interface Profile {
   program_id: ProgramId | null;
   contact_number: string | null;
   student_id: string | null;
+  resume_path: string | null;
+  resume_url: string | null;
   created_at: string;
 }
 
@@ -50,6 +52,8 @@ export interface CompanyApplication {
   status: string;
   resume_path: string;
   resume_url: string | null;
+  cover_letter_path: string | null;
+  cover_letter_url: string | null;
   created_at: string;
 }
 
