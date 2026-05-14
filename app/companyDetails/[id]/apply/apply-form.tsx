@@ -12,6 +12,8 @@ interface Props {
   companyName: string;
 }
 
+const MAX_COVER_LETTER_SIZE_BYTES = 8 * 1024 * 1024;
+
 export function ApplyForm({ companyId, companyName }: Props) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -34,6 +36,19 @@ export function ApplyForm({ companyId, companyName }: Props) {
     setStatusType("success");
 
     const formData = new FormData(formRef.current);
+    const coverLetter = formData.get("cover_letter");
+
+    if (coverLetter instanceof File && coverLetter.size > 0) {
+      if (coverLetter.size > MAX_COVER_LETTER_SIZE_BYTES) {
+        setStatusType("error");
+        setStatus(
+          "Cover letter file is too large. Maximum allowed size is 8 MB.",
+        );
+        setPending(false);
+        setConfirmOpen(false);
+        return;
+      }
+    }
 
     const res = await applyToCompany(formData);
     if ("error" in res) {
@@ -91,6 +106,7 @@ export function ApplyForm({ companyId, companyName }: Props) {
             accept=".pdf,.doc,.docx"
             required
           />
+          <p className="text-xs text-slate-500">Maximum file size: 8 MB.</p>
         </div>
 
         <p className="text-xs text-slate-500">
