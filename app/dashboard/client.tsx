@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   updateStudentSkills,
   updateStudentProgram,
@@ -33,9 +33,14 @@ import type { Profile, StudentProfile, RecommendationResult } from "@/types";
 interface Props {
   profile: Profile | null;
   studentProfile: StudentProfile | null;
+  skillSuggestions: string[];
 }
 
-export function StudentDashboardClient({ profile, studentProfile }: Props) {
+export function StudentDashboardClient({
+  profile,
+  studentProfile,
+  skillSuggestions,
+}: Props) {
   const [recommendations, setRecommendations] = useState<
     RecommendationResult[]
   >([]);
@@ -48,6 +53,11 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
     null,
   );
   const [lastRecRun, setLastRecRun] = useState<string | null>(null);
+  const [skillsInput, setSkillsInput] = useState(
+    studentProfile?.technical_skills?.join(", ") ?? "",
+  );
+  const skillsInputRef = useRef<HTMLInputElement | null>(null);
+  const [skillHighlightIndex, setSkillHighlightIndex] = useState(0);
 
   async function handleGenerateRecommendations() {
     setLoading(true);
@@ -124,6 +134,78 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
     },
     { label: "Project experience", done: !!studentProfile?.project_exp },
   ];
+
+  function getActiveSkillToken(value: string) {
+    const lastCommaIndex = value.lastIndexOf(",");
+    const token = lastCommaIndex >= 0 ? value.slice(lastCommaIndex + 1) : value;
+    return token.trim();
+  }
+
+  function applySkillSuggestion(suggestion: string) {
+    const lastCommaIndex = skillsInput.lastIndexOf(",");
+    let prefix = "";
+    if (lastCommaIndex >= 0) {
+      prefix = skillsInput.slice(0, lastCommaIndex + 1).trimEnd();
+      prefix = prefix ? `${prefix} ` : "";
+    }
+    const nextValue = `${prefix}${suggestion}, `;
+    setSkillsInput(nextValue);
+    setSkillHighlightIndex(0);
+    requestAnimationFrame(() => skillsInputRef.current?.focus());
+  }
+
+  const activeSkillToken = getActiveSkillToken(skillsInput);
+  const selectedSkills = skillsInput
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+  const filteredSkillSuggestions = skillSuggestions
+    .filter((skill) => {
+      if (!activeSkillToken) return false;
+      const matches = skill
+        .toLowerCase()
+        .includes(activeSkillToken.toLowerCase());
+      return matches && !selectedSkills.includes(skill);
+    })
+    .slice(0, 8);
+
+  useEffect(() => {
+    if (filteredSkillSuggestions.length === 0) {
+      setSkillHighlightIndex(0);
+      return;
+    }
+    setSkillHighlightIndex(0);
+  }, [activeSkillToken, filteredSkillSuggestions.length]);
+
+  function handleSkillsKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (filteredSkillSuggestions.length === 0) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSkillHighlightIndex((prev) =>
+        prev + 1 >= filteredSkillSuggestions.length ? 0 : prev + 1,
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSkillHighlightIndex((prev) =>
+        prev - 1 < 0 ? filteredSkillSuggestions.length - 1 : prev - 1,
+      );
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const selected = filteredSkillSuggestions[skillHighlightIndex];
+      if (selected) applySkillSuggestion(selected);
+    }
+
+    if (event.key === "Escape") {
+      setSkillHighlightIndex(0);
+    }
+  }
   const completedCount = completionItems.filter((item) => item.done).length;
   const completionPercent = Math.round(
     (completedCount / completionItems.length) * 100,
@@ -225,16 +307,41 @@ export function StudentDashboardClient({ profile, studentProfile }: Props) {
               </CardHeader>
               <form action={handleSkillsSubmit}>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <Label htmlFor="technical_skills">Technical Skills</Label>
                     <Input
                       id="technical_skills"
                       name="technical_skills"
                       placeholder="React, Python, SQL, Figma"
-                      defaultValue={
-                        studentProfile?.technical_skills?.join(", ") ?? ""
-                      }
+                      value={skillsInput}
+                      onChange={(event) => {
+                        setSkillsInput(event.target.value);
+                        setSkillHighlightIndex(0);
+                      }}
+                      onKeyDown={handleSkillsKeyDown}
+                      ref={skillsInputRef}
                     />
+                    {filteredSkillSuggestions.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-sm">
+                        {filteredSkillSuggestions.map((skill, index) => (
+                          <button
+                            key={skill}
+                            type="button"
+                            className={`block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 ${
+                              index === skillHighlightIndex
+                                ? "bg-slate-100"
+                                : ""
+                            }`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onMouseEnter={() => setSkillHighlightIndex(index)}
+                            onClick={() => applySkillSuggestion(skill)}
+                            aria-selected={index === skillHighlightIndex}
+                          >
+                            {skill}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="project_exp">Project Experience</Label>

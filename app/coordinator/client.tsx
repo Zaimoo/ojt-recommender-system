@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createCompany,
   updateCompany,
@@ -59,6 +59,9 @@ export function CoordinatorPanelClient({
   latestStudents,
   initialTab,
 }: Props) {
+  const skillSuggestions = Array.from(
+    new Set(companies.flatMap((company) => company.required_skills ?? [])),
+  ).sort((a, b) => a.localeCompare(b));
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "students" | "companies"
   >(
@@ -70,6 +73,10 @@ export function CoordinatorPanelClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMsg, setFormMsg] = useState<string | null>(null);
   const [selectedPrograms, setSelectedPrograms] = useState<ProgramId[]>([]);
+  const [requiredSkillsInput, setRequiredSkillsInput] = useState("");
+  const requiredSkillsRef = useRef<HTMLInputElement | null>(null);
+  const [requiredSkillHighlightIndex, setRequiredSkillHighlightIndex] =
+    useState(0);
 
   async function handleCreate(formData: FormData) {
     const res = await createCompany(formData);
@@ -80,6 +87,8 @@ export function CoordinatorPanelClient({
 
     setFormMsg("Company created!");
     setShowForm(false);
+    setRequiredSkillsInput("");
+    setRequiredSkillHighlightIndex(0);
   }
 
   async function handleUpdate(formData: FormData) {
@@ -91,6 +100,7 @@ export function CoordinatorPanelClient({
 
     setFormMsg("Company updated!");
     setEditingId(null);
+    setRequiredSkillHighlightIndex(0);
   }
 
   async function handleDelete(formData: FormData) {
@@ -107,6 +117,9 @@ export function CoordinatorPanelClient({
   }
 
   const editingCompany = companies.find((c) => c.id === editingId);
+  useEffect(() => {
+    setRequiredSkillsInput(editingCompany?.required_skills?.join(", ") ?? "");
+  }, [editingCompany]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -115,6 +128,80 @@ export function CoordinatorPanelClient({
       day: "numeric",
     });
   };
+
+  function getActiveSkillToken(value: string) {
+    const lastCommaIndex = value.lastIndexOf(",");
+    const token = lastCommaIndex >= 0 ? value.slice(lastCommaIndex + 1) : value;
+    return token.trim();
+  }
+
+  function applySkillSuggestion(suggestion: string) {
+    const lastCommaIndex = requiredSkillsInput.lastIndexOf(",");
+    let prefix = "";
+    if (lastCommaIndex >= 0) {
+      prefix = requiredSkillsInput.slice(0, lastCommaIndex + 1).trimEnd();
+      prefix = prefix ? `${prefix} ` : "";
+    }
+    const nextValue = `${prefix}${suggestion}, `;
+    setRequiredSkillsInput(nextValue);
+    setRequiredSkillHighlightIndex(0);
+    requestAnimationFrame(() => requiredSkillsRef.current?.focus());
+  }
+
+  const activeSkillToken = getActiveSkillToken(requiredSkillsInput);
+  const selectedSkills = requiredSkillsInput
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+  const filteredSkillSuggestions = skillSuggestions
+    .filter((skill) => {
+      if (!activeSkillToken) return false;
+      const matches = skill
+        .toLowerCase()
+        .includes(activeSkillToken.toLowerCase());
+      return matches && !selectedSkills.includes(skill);
+    })
+    .slice(0, 8);
+
+  useEffect(() => {
+    if (filteredSkillSuggestions.length === 0) {
+      setRequiredSkillHighlightIndex(0);
+      return;
+    }
+    setRequiredSkillHighlightIndex(0);
+  }, [activeSkillToken, filteredSkillSuggestions.length]);
+
+  function handleRequiredSkillsKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (filteredSkillSuggestions.length === 0) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setRequiredSkillHighlightIndex((prev) =>
+        prev + 1 >= filteredSkillSuggestions.length ? 0 : prev + 1,
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setRequiredSkillHighlightIndex((prev) =>
+        prev - 1 < 0 ? filteredSkillSuggestions.length - 1 : prev - 1,
+      );
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const selected = filteredSkillSuggestions[requiredSkillHighlightIndex];
+      if (selected) applySkillSuggestion(selected);
+    }
+
+    if (event.key === "Escape") {
+      setRequiredSkillHighlightIndex(0);
+    }
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -277,6 +364,7 @@ export function CoordinatorPanelClient({
                     setShowForm(true);
                     setEditingId(null);
                     setSelectedPrograms([]);
+                    setRequiredSkillsInput("");
                   }}
                   size="sm"
                 >
@@ -303,6 +391,7 @@ export function CoordinatorPanelClient({
                           setShowForm(false);
                           setEditingId(null);
                           setSelectedPrograms([]);
+                          setRequiredSkillsInput("");
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -387,10 +476,39 @@ export function CoordinatorPanelClient({
                       <Input
                         name="required_skills"
                         placeholder="React, Node.js, SQL"
-                        defaultValue={
-                          editingCompany?.required_skills?.join(", ") ?? ""
-                        }
+                        value={requiredSkillsInput}
+                        onChange={(event) => {
+                          setRequiredSkillsInput(event.target.value);
+                          setRequiredSkillHighlightIndex(0);
+                        }}
+                        onKeyDown={handleRequiredSkillsKeyDown}
+                        ref={requiredSkillsRef}
                       />
+                      {filteredSkillSuggestions.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-sm">
+                          {filteredSkillSuggestions.map((skill, index) => (
+                            <button
+                              key={skill}
+                              type="button"
+                              className={`block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 ${
+                                index === requiredSkillHighlightIndex
+                                  ? "bg-slate-100"
+                                  : ""
+                              }`}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onMouseEnter={() =>
+                                setRequiredSkillHighlightIndex(index)
+                              }
+                              onClick={() => applySkillSuggestion(skill)}
+                              aria-selected={
+                                index === requiredSkillHighlightIndex
+                              }
+                            >
+                              {skill}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">

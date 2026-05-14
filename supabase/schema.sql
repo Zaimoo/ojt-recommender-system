@@ -12,11 +12,15 @@ create table if not exists public.profiles (
   program_id  text check (program_id in ('BSIS', 'BSIT', 'BSCS', 'BSCA')),
   contact_number text,
   student_id  text,
+  resume_path text,
+  resume_url  text,
   created_at  timestamptz not null default now()
 );
 
 alter table public.profiles add column if not exists contact_number text;
 alter table public.profiles add column if not exists student_id text;
+alter table public.profiles add column if not exists resume_path text;
+alter table public.profiles add column if not exists resume_url text;
 
 alter table public.profiles enable row level security;
 
@@ -137,10 +141,14 @@ create table if not exists public.company_applications (
   status           text not null default 'submitted',
   resume_path      text not null,
   resume_url       text,
+  cover_letter_path text,
+  cover_letter_url  text,
   created_at       timestamptz not null default now()
 );
 
 alter table public.company_applications add column if not exists status text default 'submitted';
+alter table public.company_applications add column if not exists cover_letter_path text;
+alter table public.company_applications add column if not exists cover_letter_url text;
 
 alter table public.company_applications enable row level security;
 
@@ -217,7 +225,7 @@ create policy "Coordinators can view candidate resumes"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, role, full_name, program_id, contact_number, student_id)
+  insert into public.profiles (id, email, role, full_name, program_id, contact_number, student_id, resume_path, resume_url)
   values (
     new.id,
     new.email,
@@ -225,7 +233,9 @@ begin
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
     nullif(new.raw_user_meta_data ->> 'program_id', ''),
     nullif(new.raw_user_meta_data ->> 'contact_number', ''),
-    nullif(new.raw_user_meta_data ->> 'student_id', '')
+    nullif(new.raw_user_meta_data ->> 'student_id', ''),
+    nullif(new.raw_user_meta_data ->> 'resume_path', ''),
+    nullif(new.raw_user_meta_data ->> 'resume_url', '')
   );
   return new;
 end;

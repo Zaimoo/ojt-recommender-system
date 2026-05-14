@@ -16,7 +16,7 @@ interface Props {
 
 export function CoordinatorSidebar({ profile, active, onTabChange }: Props) {
   const linkBase =
-    "-mx-2 flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all";
+    "-mx-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-all";
   const linkActive = "bg-blue-50 text-blue-700 shadow-sm";
   const linkIdle = "text-slate-700 hover:bg-slate-50 hover:text-slate-900";
 
