@@ -55,11 +55,13 @@ create table if not exists public.companies (
   id                    uuid primary key default gen_random_uuid(),
   name                  text not null,
   description           text not null default '',
+  hr_name               text,
   logo_url              text,
   email_address         text,
   location_address      text,
   website_url           text,
   contact_number        text,
+  created_by            uuid references public.profiles(id),
   required_skills       text[] not null default '{}',
   eligibility_programs  text[] not null default '{}' check (eligibility_programs <@ array['BSIS','BSIT','BSCS','BSCA']::text[]),
   created_at            timestamptz not null default now(),
@@ -72,6 +74,20 @@ alter table public.companies add column if not exists email_address text;
 alter table public.companies add column if not exists location_address text;
 alter table public.companies add column if not exists website_url text;
 alter table public.companies add column if not exists contact_number text;
+alter table public.companies add column if not exists hr_name text;
+alter table public.companies add column if not exists created_by uuid;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'companies_created_by_fkey'
+  ) then
+    alter table public.companies
+      add constraint companies_created_by_fkey
+      foreign key (created_by) references public.profiles(id);
+  end if;
+end $$;
 
 alter table public.companies enable row level security;
 
@@ -218,6 +234,7 @@ drop policy if exists "Coordinators can view candidate resumes" on storage.objec
 create policy "Coordinators can view candidate resumes"
   on storage.objects for select
   using (bucket_id = 'candidate-resumes' and public.is_coordinator());
+
 
 -- ═══════════════════════════════════════════════════════════════
 -- Trigger: auto-create a profile row when a new user signs up

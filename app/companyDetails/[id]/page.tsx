@@ -83,6 +83,14 @@ export default async function CompanyDetailsPage({ params }: Props) {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-lg border border-slate-200 p-4">
                     <p className="text-xs uppercase tracking-wide text-slate-500">
+                      HR Name
+                    </p>
+                    <p className="mt-2 text-sm text-slate-800">
+                      {company.hr_name || "Not provided"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">
                       Email Address
                     </p>
                     <p className="mt-2 text-sm text-slate-800">

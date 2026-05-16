@@ -24,20 +24,44 @@ export default async function CoordinatorPage({ searchParams }: Props) {
         .order("created_at", { ascending: false }),
       supabase
         .from("profiles")
-        .select("id, full_name, email, program_id")
+        .select("id, full_name, email, program_id, contact_number, student_id")
         .eq("role", "student"),
       supabase
         .from("profiles")
-        .select("id, full_name, email, program_id, created_at")
+        .select(
+          "id, full_name, email, program_id, contact_number, student_id, created_at",
+        )
         .eq("role", "student")
         .order("created_at", { ascending: false })
         .limit(5),
     ]);
 
+  const companies = companiesRes.data ?? [];
+  const creatorIds = Array.from(
+    new Set(companies.map((company) => company.created_by).filter(Boolean)),
+  ) as string[];
+  const creatorsRes = creatorIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", creatorIds)
+    : { data: [] };
+  const creatorsById = (creatorsRes.data ?? []).reduce(
+    (acc, creator) => {
+      acc[creator.id] = creator;
+      return acc;
+    },
+    {} as Record<
+      string,
+      { id: string; full_name: string | null; email: string }
+    >,
+  );
+
   return (
     <CoordinatorPanelClient
       profile={profileRes.data}
-      companies={companiesRes.data ?? []}
+      companies={companies}
+      companyCreators={creatorsById}
       allStudents={allStudentsRes.data ?? []}
       latestStudents={latestStudentsRes.data ?? []}
       initialTab={searchParams?.tab}

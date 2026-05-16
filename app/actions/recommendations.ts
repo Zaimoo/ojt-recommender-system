@@ -10,6 +10,7 @@ import type { Company, RecommendationResult } from "@/types";
  */
 export async function getRecommendations(): Promise<{
   data?: RecommendationResult[];
+  studentSkills?: string[];
   error?: string;
 }> {
   const supabase = await createClient();
@@ -55,5 +56,5 @@ export async function getRecommendations(): Promise<{
     companies as Company[],
   );
 
-  return { data: results };
+  return { data: results, studentSkills: studentProfile.technical_skills };
 }

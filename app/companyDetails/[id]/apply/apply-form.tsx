@@ -5,7 +5,6 @@ import { applyToCompany } from "@/app/actions/application";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   companyId: string;
@@ -89,15 +88,6 @@ export function ApplyForm({ companyId, companyName }: Props) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="message">Message (optional)</Label>
-          <Textarea
-            id="message"
-            name="message"
-            placeholder="Short introduction for the company"
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="cover_letter">Cover Letter (PDF/DOC)</Label>
           <Input
             id="cover_letter"
@@ -109,9 +99,10 @@ export function ApplyForm({ companyId, companyName }: Props) {
           <p className="text-xs text-slate-500">Maximum file size: 8 MB.</p>
         </div>
 
-        <p className="text-xs text-slate-500">
-          Your saved resume from Account Settings will be attached.
-        </p>
+        <div className="text-xs text-slate-500">
+          <p>Your saved resume from Account Settings will be attached.</p>
+          <p>Your project experience from the dashboard will be included.</p>
+        </div>
 
         {status && (
           <p
