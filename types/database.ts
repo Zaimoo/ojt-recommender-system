@@ -22,11 +22,13 @@ export interface Company {
   id: string;
   name: string;
   company_overview: string;
+  hr_name: string | null;
   logo_url: string | null;
   email_address: string | null;
   location_address: string | null;
   website_url: string | null;
   contact_number: string | null;
+  created_by: string | null;
   required_skills: string[];
   eligibility_programs: ProgramId[];
   created_at: string;

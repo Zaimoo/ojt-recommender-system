@@ -31,7 +31,6 @@ export async function applyToCompany(
   const companyId = (formData.get("company_id") as string)?.trim();
   const fullName = (formData.get("full_name") as string)?.trim();
   const applicantEmail = (formData.get("email") as string)?.trim();
-  const message = (formData.get("message") as string)?.trim() || null;
   const coverLetter = formData.get("cover_letter");
 
   if (!companyId) return { error: "Missing company ID." };
@@ -54,6 +53,14 @@ export async function applyToCompany(
   if (!profile?.resume_path || !profile?.resume_url) {
     return { error: "Please upload your resume in Account Settings first." };
   }
+
+  const { data: studentProfile } = await supabase
+    .from("student_profiles")
+    .select("project_exp")
+    .eq("user_id", user.id)
+    .single();
+
+  const message = studentProfile?.project_exp?.trim() || null;
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -190,7 +197,7 @@ export async function applyToCompany(
         <p><strong>Applicant:</strong> ${fullName}</p>
         <p><strong>Email:</strong> ${applicantEmail}</p>
         <p><strong>Company:</strong> ${company.name}</p>
-        <p><strong>Message:</strong> ${message ?? "(No message provided)"}</p>
+        <p><strong>Project Experience:</strong> ${message ?? "(No project experience provided)"}</p>
         <p><strong>Resume URL:</strong> <a href="${resumeUrl}">${resumeUrl}</a></p>
         <p><strong>Cover Letter URL:</strong> <a href="${coverLetterUrl}">${coverLetterUrl}</a></p>
       `,

@@ -38,15 +38,24 @@ interface StudentSummary {
   full_name: string;
   email: string;
   program_id: ProgramId | null;
+  contact_number: string | null;
+  student_id: string | null;
 }
 
 interface StudentWithTimestamp extends StudentSummary {
   created_at: string;
 }
 
+interface CompanyCreator {
+  id: string;
+  full_name: string | null;
+  email: string;
+}
+
 interface Props {
   profile: Profile | null;
   companies: Company[];
+  companyCreators: Record<string, CompanyCreator>;
   allStudents: StudentSummary[];
   latestStudents: StudentWithTimestamp[];
   initialTab?: string;
@@ -55,6 +64,7 @@ interface Props {
 export function CoordinatorPanelClient({
   profile,
   companies,
+  companyCreators,
   allStudents,
   latestStudents,
   initialTab,
@@ -128,6 +138,11 @@ export function CoordinatorPanelClient({
       day: "numeric",
     });
   };
+
+  function resolveCreator(company: Company): CompanyCreator | null {
+    if (!company.created_by) return null;
+    return companyCreators[company.created_by] ?? null;
+  }
 
   function getActiveSkillToken(value: string) {
     const lastCommaIndex = value.lastIndexOf(",");
@@ -268,6 +283,8 @@ export function CoordinatorPanelClient({
                             <th className="pb-2 pr-4">Name</th>
                             <th className="pb-2 pr-4">Email</th>
                             <th className="pb-2 pr-4">Program</th>
+                            <th className="pb-2 pr-4">Contact</th>
+                            <th className="pb-2 pr-4">Student ID</th>
                             <th className="pb-2">Signup Date</th>
                           </tr>
                         </thead>
@@ -287,6 +304,12 @@ export function CoordinatorPanelClient({
                                 <Badge variant="secondary">
                                   {student.program_id || "N/A"}
                                 </Badge>
+                              </td>
+                              <td className="py-2 pr-4 text-slate-600">
+                                {student.contact_number || "-"}
+                              </td>
+                              <td className="py-2 pr-4 text-slate-600">
+                                {student.student_id || "-"}
                               </td>
                               <td className="py-2 text-slate-600">
                                 {formatDate(student.created_at)}
@@ -321,7 +344,9 @@ export function CoordinatorPanelClient({
                         <tr className="border-b text-left text-slate-500">
                           <th className="pb-2 pr-4">Name</th>
                           <th className="pb-2 pr-4">Email</th>
-                          <th className="pb-2">Program</th>
+                          <th className="pb-2 pr-4">Program</th>
+                          <th className="pb-2 pr-4">Contact</th>
+                          <th className="pb-2">Student ID</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -334,10 +359,16 @@ export function CoordinatorPanelClient({
                               {student.full_name || "-"}
                             </td>
                             <td className="py-2 pr-4">{student.email}</td>
-                            <td className="py-2">
+                            <td className="py-2 pr-4">
                               <Badge variant="secondary">
                                 {student.program_id || "N/A"}
                               </Badge>
+                            </td>
+                            <td className="py-2 pr-4 text-slate-600">
+                              {student.contact_number || "-"}
+                            </td>
+                            <td className="py-2 text-slate-600">
+                              {student.student_id || "-"}
                             </td>
                           </tr>
                         ))}
@@ -408,7 +439,7 @@ export function CoordinatorPanelClient({
                     />
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
+                      <div className="space-y-2 relative">
                         <Label>Company Name</Label>
                         <Input
                           name="name"
@@ -416,6 +447,17 @@ export function CoordinatorPanelClient({
                           defaultValue={editingCompany?.name ?? ""}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label>HR Name</Label>
+                        <Input
+                          name="hr_name"
+                          placeholder="Jane Doe"
+                          defaultValue={editingCompany?.hr_name ?? ""}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Company Email</Label>
                         <Input
@@ -425,9 +467,6 @@ export function CoordinatorPanelClient({
                           defaultValue={editingCompany?.email_address ?? ""}
                         />
                       </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Contact Number</Label>
                         <Input
@@ -436,6 +475,9 @@ export function CoordinatorPanelClient({
                           defaultValue={editingCompany?.contact_number ?? ""}
                         />
                       </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Location Address</Label>
                         <Input
@@ -444,9 +486,6 @@ export function CoordinatorPanelClient({
                           defaultValue={editingCompany?.location_address ?? ""}
                         />
                       </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Website / Social Link</Label>
                         <Input
@@ -455,6 +494,9 @@ export function CoordinatorPanelClient({
                           defaultValue={editingCompany?.website_url ?? ""}
                         />
                       </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Company Picture (optional)</Label>
                         <Input
@@ -469,46 +511,45 @@ export function CoordinatorPanelClient({
                           </p>
                         )}
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Required Skills (comma-separated)</Label>
-                      <Input
-                        name="required_skills"
-                        placeholder="React, Node.js, SQL"
-                        value={requiredSkillsInput}
-                        onChange={(event) => {
-                          setRequiredSkillsInput(event.target.value);
-                          setRequiredSkillHighlightIndex(0);
-                        }}
-                        onKeyDown={handleRequiredSkillsKeyDown}
-                        ref={requiredSkillsRef}
-                      />
-                      {filteredSkillSuggestions.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-sm">
-                          {filteredSkillSuggestions.map((skill, index) => (
-                            <button
-                              key={skill}
-                              type="button"
-                              className={`block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 ${
-                                index === requiredSkillHighlightIndex
-                                  ? "bg-slate-100"
-                                  : ""
-                              }`}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onMouseEnter={() =>
-                                setRequiredSkillHighlightIndex(index)
-                              }
-                              onClick={() => applySkillSuggestion(skill)}
-                              aria-selected={
-                                index === requiredSkillHighlightIndex
-                              }
-                            >
-                              {skill}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <div className="space-y-2 relative">
+                        <Label>Required Skills (comma-separated)</Label>
+                        <Input
+                          name="required_skills"
+                          placeholder="React, Node.js, SQL"
+                          value={requiredSkillsInput}
+                          onChange={(event) => {
+                            setRequiredSkillsInput(event.target.value);
+                            setRequiredSkillHighlightIndex(0);
+                          }}
+                          onKeyDown={handleRequiredSkillsKeyDown}
+                          ref={requiredSkillsRef}
+                        />
+                        {filteredSkillSuggestions.length > 0 && (
+                          <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-sm">
+                            {filteredSkillSuggestions.map((skill, index) => (
+                              <button
+                                key={skill}
+                                type="button"
+                                className={`block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 ${
+                                  index === requiredSkillHighlightIndex
+                                    ? "bg-slate-100"
+                                    : ""
+                                }`}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onMouseEnter={() =>
+                                  setRequiredSkillHighlightIndex(index)
+                                }
+                                onClick={() => applySkillSuggestion(skill)}
+                                aria-selected={
+                                  index === requiredSkillHighlightIndex
+                                }
+                              >
+                                {skill}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -600,6 +641,16 @@ export function CoordinatorPanelClient({
                       </div>
 
                       <div className="space-y-1 pt-1 text-xs text-slate-500">
+                        {(() => {
+                          const creator = resolveCreator(company);
+                          if (!creator) return null;
+                          return (
+                            <p>
+                              Added by: {creator.full_name || creator.email}
+                            </p>
+                          );
+                        })()}
+                        {company.hr_name && <p>HR: {company.hr_name}</p>}
                         {company.email_address && (
                           <p>Email: {company.email_address}</p>
                         )}

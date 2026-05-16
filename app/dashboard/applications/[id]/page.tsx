@@ -126,9 +126,11 @@ export default async function ApplicationDetailsPage({ params }: Props) {
                 </div>
 
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs uppercase text-slate-500">Message</p>
+                  <p className="text-xs uppercase text-slate-500">
+                    Project Experience
+                  </p>
                   <p className="mt-2 text-sm text-slate-700">
-                    {application.message || "No message provided."}
+                    {application.message || "No project experience provided."}
                   </p>
                 </div>
 

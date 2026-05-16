@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Briefcase, LogOut } from "lucide-react";
 import type { Profile } from "@/types";
 
-type ActiveSection = "dashboard" | "applications" | "account";
+type ActiveSection =
+  | "dashboard"
+  | "applications"
+  | "recommendations"
+  | "account";
 
 interface Props {
   profile: Profile | null;
@@ -58,6 +62,12 @@ export function StudentSidebar({ profile, active }: Props) {
           className={`${linkBase} ${active === "applications" ? linkActive : linkIdle}`}
         >
           Application History
+        </Link>
+        <Link
+          href="/dashboard/recommendations"
+          className={`${linkBase} ${active === "recommendations" ? linkActive : linkIdle}`}
+        >
+          Recommendations
         </Link>
         <Link
           href="/dashboard/account"

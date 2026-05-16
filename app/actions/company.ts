@@ -7,11 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 type CompanyPayload = {
   name: string;
   company_overview: string;
+  hr_name: string | null;
   logo_url: string | null;
   email_address: string | null;
   location_address: string | null;
   website_url: string | null;
   contact_number: string | null;
+  created_by?: string | null;
   required_skills: string[];
   eligibility_programs: ProgramOption[];
 };
@@ -86,6 +88,7 @@ function parseCompanyPayload(formData: FormData): ParseCompanyPayloadResult {
     payload: {
       name,
       company_overview: companyOverview,
+      hr_name: optionalText(formData.get("hr_name")),
       logo_url: existingLogoUrl,
       email_address: optionalText(formData.get("email_address")),
       location_address: optionalText(formData.get("location_address")),
@@ -109,6 +112,12 @@ export async function createCompany(
 
   if (!parsed.ok) return { error: parsed.error };
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
   const image = formData.get("company_image");
   if (image instanceof File && image.size > 0) {
     const uploaded = await uploadCompanyImage(image);
@@ -116,7 +125,9 @@ export async function createCompany(
     parsed.payload.logo_url = uploaded.publicUrl;
   }
 
-  const { error } = await supabase.from("companies").insert(parsed.payload);
+  const { error } = await supabase
+    .from("companies")
+    .insert({ ...parsed.payload, created_by: user.id });
   if (error) return { error: error.message };
 
   revalidatePath("/coordinator");
