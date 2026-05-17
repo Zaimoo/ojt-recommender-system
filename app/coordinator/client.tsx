@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+function normalizeUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+}
 import {
   createCompany,
   updateCompany,
@@ -664,7 +669,7 @@ export function CoordinatorPanelClient({
                           <p>
                             Link:{" "}
                             <a
-                              href={company.website_url}
+                              href={normalizeUrl(company.website_url)}
                               target="_blank"
                               rel="noreferrer"
                               className="text-blue-600 underline"
