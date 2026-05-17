@@ -4,9 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentSidebar } from "@/app/dashboard/_components/student-sidebar";
+import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
 
 interface Props {
   params: Promise<{ id: string }>;
+}
+
+function normalizeUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
 }
 
 export default async function CompanyDetailsPage({ params }: Props) {
@@ -27,10 +33,20 @@ export default async function CompanyDetailsPage({ params }: Props) {
   if (companyRes.error || !companyRes.data) notFound();
 
   const company = companyRes.data;
+  const isCoordinator = profileRes.data?.role === "coordinator";
+
+  const sidebar = isCoordinator ? (
+    <CoordinatorSidebar profile={profileRes.data} active="companies" />
+  ) : (
+    <StudentSidebar profile={profileRes.data} active="dashboard" />
+  );
+
+  const backHref = isCoordinator ? "/coordinator?tab=companies" : "/dashboard";
+  const backLabel = isCoordinator ? "Back to companies" : "Back to dashboard";
 
   return (
     <div className="flex min-h-screen bg-slate-100">
-      <StudentSidebar profile={profileRes.data} active="dashboard" />
+      {sidebar}
 
       <div className="flex-1">
         <header className="border-b border-slate-200 bg-white shadow-sm">
@@ -43,8 +59,8 @@ export default async function CompanyDetailsPage({ params }: Props) {
 
         <main className="p-6 md:p-8">
           <div className="mx-auto max-w-4xl space-y-6">
-            <Link href="/dashboard" className="text-sm text-blue-600 underline">
-              Back to dashboard
+            <Link href={backHref} className="text-sm text-blue-600 underline">
+              {backLabel}
             </Link>
 
             <Card>
@@ -53,12 +69,14 @@ export default async function CompanyDetailsPage({ params }: Props) {
                   <CardTitle className="text-2xl text-slate-900">
                     {company.name}
                   </CardTitle>
-                  <Link
-                    href={`/companyDetails/${company.id}/apply`}
-                    className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                  >
-                    Apply
-                  </Link>
+                  {!isCoordinator && (
+                    <Link
+                      href={`/companyDetails/${company.id}/apply`}
+                      className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    >
+                      Apply
+                    </Link>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -111,7 +129,7 @@ export default async function CompanyDetailsPage({ params }: Props) {
                     </p>
                     {company.website_url ? (
                       <a
-                        href={company.website_url}
+                        href={normalizeUrl(company.website_url)}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-2 inline-block text-sm text-blue-600 underline"

@@ -157,14 +157,15 @@ create table if not exists public.company_applications (
   status           text not null default 'submitted',
   resume_path      text not null,
   resume_url       text,
-  cover_letter_path text,
-  cover_letter_url  text,
+  cover_letter_html text,
   created_at       timestamptz not null default now()
 );
 
 alter table public.company_applications add column if not exists status text default 'submitted';
-alter table public.company_applications add column if not exists cover_letter_path text;
-alter table public.company_applications add column if not exists cover_letter_url text;
+alter table public.company_applications add column if not exists cover_letter_html text;
+-- Migration: drop old file-based cover letter columns if they still exist
+alter table public.company_applications drop column if exists cover_letter_path;
+alter table public.company_applications drop column if exists cover_letter_url;
 
 alter table public.company_applications enable row level security;
 

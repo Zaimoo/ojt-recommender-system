@@ -1,55 +1,58 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { applyToCompany } from "@/app/actions/application";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 interface Props {
   companyId: string;
   companyName: string;
 }
 
-const MAX_COVER_LETTER_SIZE_BYTES = 8 * 1024 * 1024;
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, "").trim();
+}
 
 export function ApplyForm({ companyId, companyName }: Props) {
-  const formRef = useRef<HTMLFormElement | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "warning" | "error">(
     "success",
   );
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [coverLetterHtml, setCoverLetterHtml] = useState("");
 
   function handleRequestSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!stripHtml(coverLetterHtml)) {
+      setStatusType("error");
+      setStatus("Please write your cover letter before submitting.");
+      return;
+    }
+
+    setStatus(null);
     setConfirmOpen(true);
   }
 
   async function handleConfirmApply() {
-    if (!formRef.current) return;
-
     setPending(true);
     setStatus(null);
     setStatusType("success");
 
-    const formData = new FormData(formRef.current);
-    const coverLetter = formData.get("cover_letter");
-
-    if (coverLetter instanceof File && coverLetter.size > 0) {
-      if (coverLetter.size > MAX_COVER_LETTER_SIZE_BYTES) {
-        setStatusType("error");
-        setStatus(
-          "Cover letter file is too large. Maximum allowed size is 8 MB.",
-        );
-        setPending(false);
-        setConfirmOpen(false);
-        return;
-      }
-    }
+    const formData = new FormData();
+    formData.set("company_id", companyId);
+    formData.set("full_name", fullName);
+    formData.set("email", email);
+    formData.set("cover_letter_html", coverLetterHtml);
 
     const res = await applyToCompany(formData);
+
     if ("error" in res) {
       setStatusType("error");
       setStatus(res.error);
@@ -74,35 +77,45 @@ export function ApplyForm({ companyId, companyName }: Props) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <form ref={formRef} onSubmit={handleRequestSubmit} className="space-y-4">
+      <form onSubmit={handleRequestSubmit} className="space-y-4">
         <input type="hidden" name="company_id" value={companyId} />
 
         <div className="space-y-2">
           <Label htmlFor="full_name">Full Name</Label>
-          <Input id="full_name" name="full_name" required />
+          <Input
+            id="full_name"
+            name="full_name"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" required />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="cover_letter">Cover Letter (PDF/DOC)</Label>
-          <Input
-            id="cover_letter"
-            name="cover_letter"
-            type="file"
-            accept=".pdf,.doc,.docx"
-            required
+          <Label>Cover Letter</Label>
+          <RichTextEditor
+            value={coverLetterHtml}
+            onChange={setCoverLetterHtml}
+            placeholder="Write your cover letter here. Introduce yourself, highlight your skills, and explain why you're a great fit for this company..."
+            minHeight="220px"
           />
-          <p className="text-xs text-slate-500">Maximum file size: 8 MB.</p>
         </div>
 
-        <div className="text-xs text-slate-500">
-          <p>Your saved resume from Account Settings will be attached.</p>
-          <p>Your project experience from the dashboard will be included.</p>
-        </div>
+        <p className="text-xs text-slate-500">
+          Your saved resume from Account Settings will be attached automatically.
+        </p>
 
         {status && (
           <p
