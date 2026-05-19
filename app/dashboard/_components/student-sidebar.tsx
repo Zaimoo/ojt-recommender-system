@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { signOut } from "@/app/actions/auth";
-import { Button } from "@/components/ui/button";
-import { Briefcase, LogOut } from "lucide-react";
+import { LayoutDashboard, Sparkles, FileText, Settings } from "lucide-react";
+import { AppSidebar } from "@/components/ui/app-sidebar";
 import type { Profile } from "@/types";
 
 type ActiveSection =
@@ -18,77 +16,32 @@ interface Props {
 }
 
 export function StudentSidebar({ profile, active }: Props) {
-  const linkBase =
-    "-mx-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-all";
-  const linkActive = "bg-blue-50 text-blue-700 shadow-sm";
-  const linkIdle = "text-slate-700 hover:bg-slate-50 hover:text-slate-900";
+  const navItems = [
+    {
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/dashboard",
+      active: active === "dashboard",
+    },
+    {
+      label: "Recommendations",
+      icon: Sparkles,
+      href: "/dashboard/recommendations",
+      active: active === "recommendations",
+    },
+    {
+      label: "Applications",
+      icon: FileText,
+      href: "/dashboard/applications",
+      active: active === "applications",
+    },
+    {
+      label: "Account Settings",
+      icon: Settings,
+      href: "/dashboard/account",
+      active: active === "account",
+    },
+  ];
 
-  return (
-    <aside className="flex w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 bg-slate-50 p-6">
-        <div className="flex items-center gap-3 pb-4">
-          <div className="rounded-lg border border-slate-200 bg-white p-2 text-blue-600 shadow-sm">
-            <Briefcase className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-slate-900">
-              Student Dashboard
-            </h1>
-            <p className="text-xs text-slate-500">OJT Recommender</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
-            {(profile?.full_name || profile?.email || "U")?.[0]?.toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-900">
-              {profile?.full_name || profile?.email || "User"}
-            </p>
-            <p className="truncate text-xs text-slate-500">Student</p>
-          </div>
-        </div>
-      </div>
-
-      <nav className="flex-1 space-y-2 p-4">
-        <Link
-          href="/dashboard"
-          className={`${linkBase} ${active === "dashboard" ? linkActive : linkIdle}`}
-        >
-          Dashboard
-        </Link>
-        <Link
-          href="/dashboard/applications"
-          className={`${linkBase} ${active === "applications" ? linkActive : linkIdle}`}
-        >
-          Application History
-        </Link>
-        <Link
-          href="/dashboard/recommendations"
-          className={`${linkBase} ${active === "recommendations" ? linkActive : linkIdle}`}
-        >
-          Recommendations
-        </Link>
-        <Link
-          href="/dashboard/account"
-          className={`${linkBase} ${active === "account" ? linkActive : linkIdle}`}
-        >
-          Account Settings
-        </Link>
-      </nav>
-
-      <div className="border-t border-slate-200 p-4">
-        <form action={signOut} className="w-full">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-            type="submit"
-          >
-            <LogOut className="mr-2 h-4 w-4" /> Sign Out
-          </Button>
-        </form>
-      </div>
-    </aside>
-  );
+  return <AppSidebar profile={profile} role="student" navItems={navItems} />;
 }
