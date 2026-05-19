@@ -82,11 +82,26 @@ export async function signIn(formData: FormData) {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, coordinator_status")
         .eq("id", user.id)
         .single();
 
       const role = profile?.role;
+
+      if (
+        role === "coordinator" &&
+        profile?.coordinator_status !== "approved"
+      ) {
+        await supabase.auth.signOut();
+        const status = profile?.coordinator_status ?? "pending";
+        return {
+          error:
+            status === "denied"
+              ? "Your coordinator access request was denied. Please contact support."
+              : "Your coordinator account is pending verification. Please wait for approval.",
+        };
+      }
+
       return {
         redirectTo: role === "coordinator" ? "/coordinator" : "/dashboard",
       };
