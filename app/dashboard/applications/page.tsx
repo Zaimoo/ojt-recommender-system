@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentSidebar } from "../_components/student-sidebar";
+import { FileText, ArrowUpRight } from "lucide-react";
 
 interface ApplicationRow {
   id: string;
@@ -12,9 +12,7 @@ interface ApplicationRow {
   company: { id: string; name: string }[] | { id: string; name: string } | null;
 }
 
-function resolveCompany(
-  company: ApplicationRow["company"],
-): { id: string; name: string } | null {
+function resolveCompany(company: ApplicationRow["company"]): { id: string; name: string } | null {
   if (!company) return null;
   if (Array.isArray(company)) return company[0] ?? null;
   return company;
@@ -30,28 +28,21 @@ function formatDate(value: string) {
 
 function statusBadgeVariant(status: string) {
   switch (status) {
-    case "accepted":
-      return "success";
-    case "rejected":
-      return "destructive";
-    case "under_review":
-      return "warning";
-    default:
-      return "secondary";
+    case "accepted": return "success";
+    case "rejected": return "destructive";
+    case "under_review": return "warning";
+    default: return "secondary";
   }
 }
 
-function prettyStatus(status: string) {
-  return status.replace(/_/g, " ");
+function statusLabel(status: string) {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export default async function ApplicationHistoryPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const [profileRes, applicationsRes] = await Promise.all([
@@ -66,40 +57,44 @@ export default async function ApplicationHistoryPage() {
   const applications = applicationsRes.data;
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <StudentSidebar profile={profileRes.data} active="applications" />
 
-      <div className="flex-1">
-        <header className="border-b border-slate-200 bg-white shadow-sm">
-          <div className="px-8 py-4">
-            <h2 className="text-xl font-bold text-slate-900">
-              Application History
-            </h2>
-          </div>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center border-b border-slate-200 bg-white px-8">
+          <h1 className="text-lg font-semibold text-slate-900">Application History</h1>
         </header>
 
-        <main className="p-6 md:p-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Your Applications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!applications || applications.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  You have not submitted any applications yet.
+        <main className="flex-1 overflow-auto p-6 md:p-8">
+          <div className="mx-auto max-w-4xl">
+            {!applications || applications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-20 text-center">
+                <FileText className="mb-3 h-10 w-10 text-slate-300" />
+                <p className="font-medium text-slate-500">No applications yet</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Head to{" "}
+                  <Link href="/dashboard/recommendations" className="text-blue-600 underline">
+                    Recommendations
+                  </Link>{" "}
+                  to find companies and apply.
                 </p>
-              ) : (
-                <div className="space-y-3">
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-4">
+                  <p className="font-semibold text-slate-900">Your Applications</p>
+                  <p className="text-xs text-slate-500">{applications.length} total</p>
+                </div>
+                <div className="divide-y divide-slate-100">
                   {(applications as ApplicationRow[]).map((application) => {
                     const company = resolveCompany(application.company);
-
                     return (
                       <div
                         key={application.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                        className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-slate-50"
                       >
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="font-semibold text-slate-900">
                             {company?.name ?? "Unknown company"}
                           </p>
                           <p className="text-xs text-slate-500">
@@ -107,23 +102,21 @@ export default async function ApplicationHistoryPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge
-                            variant={statusBadgeVariant(application.status)}
-                          >
-                            {prettyStatus(application.status)}
+                          <Badge variant={statusBadgeVariant(application.status)}>
+                            {statusLabel(application.status)}
                           </Badge>
                           <Link
                             href={`/dashboard/applications/${application.id}`}
-                            className="text-xs font-medium text-blue-600 underline"
+                            className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
                           >
-                            Details
+                            Details <ArrowUpRight className="h-3 w-3" />
                           </Link>
                           {company?.id && (
                             <Link
                               href={`/companyDetails/${company.id}`}
-                              className="text-xs font-medium text-blue-600 underline"
+                              className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 hover:underline"
                             >
-                              View
+                              Company <ArrowUpRight className="h-3 w-3" />
                             </Link>
                           )}
                         </div>
@@ -131,9 +124,9 @@ export default async function ApplicationHistoryPage() {
                     );
                   })}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>

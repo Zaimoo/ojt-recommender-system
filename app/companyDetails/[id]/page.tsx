@@ -1,10 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentSidebar } from "@/app/dashboard/_components/student-sidebar";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
+import { MapPin, Mail, Phone, Globe, User, ArrowLeft } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -22,7 +23,6 @@ export default async function CompanyDetailsPage({ params }: Props) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) redirect("/login");
 
   const [profileRes, companyRes] = await Promise.all([
@@ -34,151 +34,186 @@ export default async function CompanyDetailsPage({ params }: Props) {
 
   const company = companyRes.data;
   const isCoordinator = profileRes.data?.role === "coordinator";
+  const backHref = isCoordinator
+    ? "/coordinator?tab=companies"
+    : "/dashboard/recommendations";
+  const backLabel = isCoordinator
+    ? "Back to companies"
+    : "Back to recommendations";
 
   const sidebar = isCoordinator ? (
     <CoordinatorSidebar profile={profileRes.data} active="companies" />
   ) : (
-    <StudentSidebar profile={profileRes.data} active="dashboard" />
+    <StudentSidebar profile={profileRes.data} active="recommendations" />
   );
 
-  const backHref = isCoordinator ? "/coordinator?tab=companies" : "/dashboard";
-  const backLabel = isCoordinator ? "Back to companies" : "Back to dashboard";
-
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {sidebar}
 
-      <div className="flex-1">
-        <header className="border-b border-slate-200 bg-white shadow-sm">
-          <div className="px-8 py-4">
-            <h2 className="text-xl font-bold text-slate-900">
-              Company Details
-            </h2>
-          </div>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8">
+          <h1 className="text-lg font-semibold text-slate-900">
+            Company Details
+          </h1>
+          {!isCoordinator && (
+            <Link
+              href={`/companyDetails/${company.id}/apply`}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              Apply Now
+            </Link>
+          )}
         </header>
 
-        <main className="p-6 md:p-8">
-          <div className="mx-auto max-w-4xl space-y-6">
-            <Link href={backHref} className="text-sm text-blue-600 underline">
-              {backLabel}
+        <main className="flex-1 overflow-auto p-6 md:p-8">
+          <div className="mx-auto max-w-4xl space-y-5">
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+            >
+              <ArrowLeft className="h-4 w-4" /> {backLabel}
             </Link>
 
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <CardTitle className="text-2xl text-slate-900">
-                    {company.name}
-                  </CardTitle>
-                  {!isCoordinator && (
-                    <Link
-                      href={`/companyDetails/${company.id}/apply`}
-                      className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            {/* Company banner */}
+            {company.logo_url ? (
+              <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+                <img
+                  src={company.logo_url}
+                  alt={`${company.name} logo`}
+                  className="max-h-64 w-auto max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="flex h-36 md:h-52 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-400">
+                No company image uploaded
+              </div>
+            )}
+
+            {/* Company name + overview */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {company.name}
+              </h2>
+              {company.company_overview && (
+                <p className="mt-3 leading-relaxed text-slate-600">
+                  {company.company_overview}
+                </p>
+              )}
+            </div>
+
+            {/* Info grid */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                { label: "HR Contact", value: company.hr_name, icon: User },
+                {
+                  label: "Email Address",
+                  value: company.email_address,
+                  icon: Mail,
+                },
+                {
+                  label: "Location",
+                  value: company.location_address,
+                  icon: MapPin,
+                },
+                {
+                  label: "Contact Number",
+                  value: company.contact_number,
+                  icon: Phone,
+                },
+              ].map(({ label, value, icon: Icon }) => (
+                <div
+                  key={label}
+                  className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      {label}
+                    </p>
+                    <p className="mt-0.5 text-sm text-slate-800">
+                      {value || "Not provided"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {/* Website */}
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                  <Globe className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Website / Social
+                  </p>
+                  {company.website_url ? (
+                    <a
+                      href={normalizeUrl(company.website_url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-0.5 block text-sm text-blue-600 hover:underline"
                     >
-                      Apply
-                    </Link>
+                      {company.website_url}
+                    </a>
+                  ) : (
+                    <p className="mt-0.5 text-sm text-slate-800">
+                      Not provided
+                    </p>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {company.logo_url ? (
-                  <div className="overflow-hidden rounded-lg border border-slate-200">
-                    <img
-                      src={company.logo_url}
-                      alt={`${company.name} logo`}
-                      className="h-56 w-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-                    No company logo/picture uploaded.
-                  </div>
-                )}
+              </div>
+            </div>
 
-                <p className="text-slate-700">
-                  {company.company_overview || "No description available."}
+            {/* Skills & Programs */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Required Skills
                 </p>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg border border-slate-200 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      HR Name
-                    </p>
-                    <p className="mt-2 text-sm text-slate-800">
-                      {company.hr_name || "Not provided"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Email Address
-                    </p>
-                    <p className="mt-2 text-sm text-slate-800">
-                      {company.email_address || "Not provided"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Location Address
-                    </p>
-                    <p className="mt-2 text-sm text-slate-800">
-                      {company.location_address || "Not provided"}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Website / Social Media
-                    </p>
-                    {company.website_url ? (
-                      <a
-                        href={normalizeUrl(company.website_url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-block text-sm text-blue-600 underline"
-                      >
-                        {company.website_url}
-                      </a>
-                    ) : (
-                      <p className="mt-2 text-sm text-slate-800">
-                        Not provided
-                      </p>
-                    )}
-                  </div>
-                  <div className="rounded-lg border border-slate-200 p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Contact Number
-                    </p>
-                    <p className="mt-2 text-sm text-slate-800">
-                      {company.contact_number || "Not provided"}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">
-                    Required Skills
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {company.required_skills.map((skill: string) => (
+                <div className="flex flex-wrap gap-2">
+                  {company.required_skills.length > 0 ? (
+                    company.required_skills.map((skill: string) => (
                       <Badge key={skill} variant="secondary">
                         {skill}
                       </Badge>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-400">None listed</span>
+                  )}
                 </div>
-
-                <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">
-                    Eligible Programs
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {company.eligibility_programs.map((program: string) => (
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Eligible Programs
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {company.eligibility_programs.length > 0 ? (
+                    company.eligibility_programs.map((program: string) => (
                       <Badge key={program} variant="outline">
                         {program}
                       </Badge>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-400">None listed</span>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
+            {/* Apply CTA at bottom (student only) */}
+            {!isCoordinator && (
+              <div className="flex justify-end">
+                <Link
+                  href={`/companyDetails/${company.id}/apply`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  Apply to {company.name}
+                </Link>
+              </div>
+            )}
           </div>
         </main>
       </div>

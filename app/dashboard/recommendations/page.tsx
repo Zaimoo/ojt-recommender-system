@@ -19,19 +19,15 @@ export default async function RecommendationsPage() {
     .single();
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <StudentSidebar profile={profile} active="recommendations" />
 
-      <div className="flex-1">
-        <header className="border-b border-slate-200 bg-white shadow-sm">
-          <div className="px-8 py-4">
-            <h2 className="text-xl font-bold text-slate-900">
-              Recommendations
-            </h2>
-          </div>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center border-b border-slate-200 bg-white px-8">
+          <h1 className="text-lg font-semibold text-slate-900">Recommendations</h1>
         </header>
 
-        <main className="p-6 md:p-8">
+        <main className="flex-1 overflow-auto p-6 md:p-8">
           <RecommendationsClient />
         </main>
       </div>
