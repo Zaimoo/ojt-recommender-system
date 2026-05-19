@@ -15,6 +15,10 @@ export interface Profile {
   student_id: string | null;
   resume_path: string | null;
   resume_url: string | null;
+  coordinator_status: "pending" | "approved" | "denied";
+  coordinator_reviewed_at: string | null;
+  coordinator_reviewed_by: string | null;
+  coordinator_denied_reason: string | null;
   created_at: string;
 }
 

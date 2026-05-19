@@ -1,4 +1,4 @@
--- ═══════════════════════════════════════════════════════════════
+ BN         -- ═══════════════════════════════════════════════════════════════
 -- OJT Company Recommendation System – Supabase SQL Schema
 -- Run this in the Supabase SQL Editor (Dashboard → SQL)
 -- ═══════════════════════════════════════════════════════════════
@@ -14,6 +14,11 @@ create table if not exists public.profiles (
   student_id  text,
   resume_path text,
   resume_url  text,
+  coordinator_status text not null default 'approved'
+    check (coordinator_status in ('pending', 'approved', 'denied')),
+  coordinator_reviewed_at timestamptz,
+  coordinator_reviewed_by uuid references public.profiles(id),
+  coordinator_denied_reason text,
   created_at  timestamptz not null default now()
 );
 
@@ -21,40 +26,50 @@ alter table public.profiles add column if not exists contact_number text;
 alter table public.profiles add column if not exists student_id text;
 alter table public.profiles add column if not exists resume_path text;
 alter table public.profiles add column if not exists resume_url text;
+alter table public.profiles add column if not exists coordinator_status text;
+alter table public.profiles add column if not exists coordinator_reviewed_at timestamptz;
+alter table public.profiles add column if not exists coordinator_reviewed_by uuid;
+alter table public.profiles add column if not exists coordinator_denied_reason text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_coordinator_reviewed_by_fkey'
+  ) then
+    alter table public.profiles
+      add constraint profiles_coordinator_reviewed_by_fkey
+      foreign key (coordinator_reviewed_by) references public.profiles(id);
+  end if;
+end $$;
 
 alter table public.profiles enable row level security;
 
 drop policy if exists "Users can read own profile" on public.profiles;
 create policy "Users can read own profile"
-    coordinator_status text not null default 'approved'
-      check (coordinator_status in ('pending', 'approved', 'denied')),
-    coordinator_reviewed_at timestamptz,
-    coordinator_reviewed_by uuid references public.profiles(id),
-    coordinator_denied_reason text,
   on public.profiles for select
   using (auth.uid() = id);
 
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
-  alter table public.profiles add column if not exists coordinator_status text;
-  alter table public.profiles add column if not exists coordinator_reviewed_at timestamptz;
-  alter table public.profiles add column if not exists coordinator_reviewed_by uuid;
-  alter table public.profiles add column if not exists coordinator_denied_reason text;
-
-  do $$
-  begin
-    if not exists (
-      select 1
-      from pg_constraint
-      where conname = 'profiles_coordinator_reviewed_by_fkey'
-    ) then
-      alter table public.profiles
-        add constraint profiles_coordinator_reviewed_by_fkey
-        foreign key (coordinator_reviewed_by) references public.profiles(id);
-    end if;
-  end $$;
   on public.profiles for update
-  using (auth.uid() = id);
+  using (auth.uid() = id)
+  with check (
+    auth.uid() = id
+    and coordinator_status = (
+      select coordinator_status from public.profiles where id = auth.uid()
+    )
+    and coordinator_reviewed_at is not distinct from (
+      select coordinator_reviewed_at from public.profiles where id = auth.uid()
+    )
+    and coordinator_reviewed_by is not distinct from (
+      select coordinator_reviewed_by from public.profiles where id = auth.uid()
+    )
+    and coordinator_denied_reason is not distinct from (
+      select coordinator_denied_reason from public.profiles where id = auth.uid()
+    )
+  );
 
 create or replace function public.is_coordinator()
 returns boolean as $$
@@ -63,118 +78,95 @@ returns boolean as $$
     from public.profiles
     where id = auth.uid()
       and role = 'coordinator'
+  );
+$$ language sql security definer stable;
 
-  create or replace function public.is_verified_coordinator()
-  returns boolean as $$
-    select exists (
-      select 1
-      from public.profiles
-      where id = auth.uid()
-        and role = 'coordinator'
-        and coordinator_status = 'approved'
-    );
-  $$ language sql security definer stable;
+create or replace function public.is_verified_coordinator()
+returns boolean as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and role = 'coordinator'
+      and coordinator_status = 'approved'
   );
 $$ language sql security definer stable;
 
 -- Coordinators can view all profiles
-drop policy if exists "Coordinators can view all profiles" on public.profiles;
-    with check (
-      auth.uid() = id
-      and coordinator_status = (
-        select coordinator_status from public.profiles where id = auth.uid()
-      )
-      and coordinator_reviewed_at is not distinct from (
-        select coordinator_reviewed_at from public.profiles where id = auth.uid()
-      )
-      and coordinator_reviewed_by is not distinct from (
-        select coordinator_reviewed_by from public.profiles where id = auth.uid()
-      )
-      and coordinator_denied_reason is not distinct from (
-        select coordinator_denied_reason from public.profiles where id = auth.uid()
-      )
-    );
+ drop policy if exists "Coordinators can view all profiles" on public.profiles;
 create policy "Coordinators can view all profiles"
   on public.profiles for select
-  using ( public.is_coordinator() );
+  using ( public.is_verified_coordinator() );
+
+drop policy if exists "Verified coordinators can update coordinator status" on public.profiles;
+create policy "Verified coordinators can update coordinator status"
+  on public.profiles for update
+  using ( public.is_verified_coordinator() )
+  with check ( public.is_verified_coordinator() );
 
 -- 2. Companies table
-    using ( public.is_verified_coordinator() );
-
-  drop policy if exists "Verified coordinators can update coordinator status" on public.profiles;
-  create policy "Verified coordinators can update coordinator status"
-    on public.profiles for update
-    using ( public.is_verified_coordinator() )
-    with check ( public.is_verified_coordinator() );
+create table if not exists public.companies (
   id                    uuid primary key default gen_random_uuid(),
   name                  text not null,
   description           text not null default '',
   hr_name               text,
-    with check ( public.is_verified_coordinator() );
+  logo_url              text,
   email_address         text,
   location_address      text,
   website_url           text,
   contact_number        text,
-    using ( public.is_verified_coordinator() );
+  created_by            uuid references public.profiles(id),
   required_skills       text[] not null default '{}',
   eligibility_programs  text[] not null default '{}' check (eligibility_programs <@ array['BSIS','BSIT','BSCS','BSCA']::text[]),
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
-    using ( public.is_verified_coordinator() );
+);
 
 -- Existing deployments: ensure new company detail columns exist
 alter table public.companies add column if not exists logo_url text;
 alter table public.companies add column if not exists email_address text;
-    using ( public.is_verified_coordinator() );
+alter table public.companies add column if not exists location_address text;
 alter table public.companies add column if not exists website_url text;
 alter table public.companies add column if not exists contact_number text;
 alter table public.companies add column if not exists hr_name text;
 alter table public.companies add column if not exists created_by uuid;
-    using (public.is_verified_coordinator());
+do $$
 begin
   if not exists (
     select 1
     from pg_constraint
-    with check (bucket_id = 'company-assets' and public.is_verified_coordinator());
+    where conname = 'companies_created_by_fkey'
   ) then
     alter table public.companies
       add constraint companies_created_by_fkey
       foreign key (created_by) references public.profiles(id);
-    using (bucket_id = 'company-assets' and public.is_verified_coordinator());
+  end if;
 end $$;
 
 alter table public.companies enable row level security;
 
-    using (bucket_id = 'company-assets' and public.is_verified_coordinator());
+-- Everyone authenticated can read companies
 drop policy if exists "Authenticated users can read companies" on public.companies;
 create policy "Authenticated users can read companies"
   on public.companies for select
   using (auth.role() = 'authenticated');
-    using (bucket_id = 'candidate-resumes' and public.is_verified_coordinator());
--- Only coordinators can insert / update / delete companies
+
+-- Only verified coordinators can insert / update / delete companies
 drop policy if exists "Coordinators can insert companies" on public.companies;
 create policy "Coordinators can insert companies"
   on public.companies for insert
-    -- Coordinators must be verified by another coordinator
-  with check ( public.is_coordinator() );
+  with check ( public.is_verified_coordinator() );
 
 drop policy if exists "Coordinators can update companies" on public.companies;
 create policy "Coordinators can update companies"
   on public.companies for update
-  using ( public.is_coordinator() );
+  using ( public.is_verified_coordinator() );
 
 drop policy if exists "Coordinators can delete companies" on public.companies;
 create policy "Coordinators can delete companies"
   on public.companies for delete
-  using ( public.is_coordinator() );
+  using ( public.is_verified_coordinator() );
 
-
-    update public.profiles
-    set coordinator_status = case
-      when role = 'coordinator' then 'pending'
-      else 'approved'
-    end
-    where id = new.id;
 -- 3. Student profiles table
 create table if not exists public.student_profiles (
   id                uuid primary key default gen_random_uuid(),
@@ -206,7 +198,7 @@ create policy "Students can update own student profile"
 drop policy if exists "Coordinators can view all student profiles" on public.student_profiles;
 create policy "Coordinators can view all student profiles"
   on public.student_profiles for select
-  using ( public.is_coordinator() );
+  using ( public.is_verified_coordinator() );
 
 -- 4. Company applications table
 create table if not exists public.company_applications (
@@ -244,7 +236,7 @@ create policy "Students can read own company applications"
 drop policy if exists "Coordinators can read company applications" on public.company_applications;
 create policy "Coordinators can read company applications"
   on public.company_applications for select
-  using (public.is_coordinator());
+  using (public.is_verified_coordinator());
 
 -- 5. Storage buckets for company assets and candidate resumes
 insert into storage.buckets (id, name, public)
@@ -263,17 +255,17 @@ create policy "Authenticated users can view company assets"
 drop policy if exists "Coordinators can upload company assets" on storage.objects;
 create policy "Coordinators can upload company assets"
   on storage.objects for insert
-  with check (bucket_id = 'company-assets' and public.is_coordinator());
+  with check (bucket_id = 'company-assets' and public.is_verified_coordinator());
 
 drop policy if exists "Coordinators can update company assets" on storage.objects;
 create policy "Coordinators can update company assets"
   on storage.objects for update
-  using (bucket_id = 'company-assets' and public.is_coordinator());
+  using (bucket_id = 'company-assets' and public.is_verified_coordinator());
 
 drop policy if exists "Coordinators can delete company assets" on storage.objects;
 create policy "Coordinators can delete company assets"
   on storage.objects for delete
-  using (bucket_id = 'company-assets' and public.is_coordinator());
+  using (bucket_id = 'company-assets' and public.is_verified_coordinator());
 
 drop policy if exists "Students can upload own resumes" on storage.objects;
 create policy "Students can upload own resumes"
@@ -296,7 +288,7 @@ create policy "Students can view own resumes"
 drop policy if exists "Coordinators can view candidate resumes" on storage.objects;
 create policy "Coordinators can view candidate resumes"
   on storage.objects for select
-  using (bucket_id = 'candidate-resumes' and public.is_coordinator());
+  using (bucket_id = 'candidate-resumes' and public.is_verified_coordinator());
 
 
 -- ═══════════════════════════════════════════════════════════════
@@ -305,6 +297,7 @@ create policy "Coordinators can view candidate resumes"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
+  -- Coordinators must be verified by another coordinator
   insert into public.profiles (id, email, role, full_name, program_id, contact_number, student_id, resume_path, resume_url)
   values (
     new.id,
@@ -317,6 +310,13 @@ begin
     nullif(new.raw_user_meta_data ->> 'resume_path', ''),
     nullif(new.raw_user_meta_data ->> 'resume_url', '')
   );
+
+  update public.profiles
+  set coordinator_status = case
+    when role = 'coordinator' then 'pending'
+    else 'approved'
+  end
+  where id = new.id;
   return new;
 end;
 $$ language plpgsql security definer;

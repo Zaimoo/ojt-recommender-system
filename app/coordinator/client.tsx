@@ -13,7 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
-import { Plus, Pencil, Trash2, X, Building2, Users, Globe } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Building2,
+  Users,
+  Globe,
+  UserCheck,
+} from "lucide-react";
 import type { Profile, Company, ProgramId } from "@/types";
 
 interface StudentSummary {
@@ -35,12 +44,24 @@ interface CompanyCreator {
   email: string;
 }
 
+interface PendingCoordinator {
+  id: string;
+  full_name: string | null;
+  email: string;
+  program_id: ProgramId | null;
+  contact_number: string | null;
+  created_at: string;
+  coordinator_status: string | null;
+  coordinator_denied_reason: string | null;
+}
+
 interface Props {
   profile: Profile | null;
   companies: Company[];
   companyCreators: Record<string, CompanyCreator>;
   allStudents: StudentSummary[];
   latestStudents: StudentWithTimestamp[];
+  pendingCoordinators: PendingCoordinator[];
   initialTab?: string;
 }
 
@@ -55,6 +76,7 @@ export function CoordinatorPanelClient({
   companyCreators,
   allStudents,
   latestStudents,
+  pendingCoordinators,
   initialTab,
 }: Props) {
   const skillSuggestions = Array.from(
@@ -62,9 +84,11 @@ export function CoordinatorPanelClient({
   ).sort((a, b) => a.localeCompare(b));
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "students" | "companies"
+    "dashboard" | "students" | "companies" | "verifications"
   >(
-    initialTab === "students" || initialTab === "companies"
+    initialTab === "students" ||
+      initialTab === "companies" ||
+      initialTab === "verifications"
       ? initialTab
       : "dashboard",
   );
@@ -184,6 +208,7 @@ export function CoordinatorPanelClient({
     dashboard: "Dashboard",
     students: "All Students",
     companies: "Companies",
+    verifications: "Coordinator Verifications",
   };
 
   return (
@@ -389,6 +414,91 @@ export function CoordinatorPanelClient({
                             </td>
                             <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
                               —
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Verifications Tab ───────────────────────── */}
+          {activeTab === "verifications" && (
+            <div className="mx-auto max-w-5xl space-y-4">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      Pending Coordinator Requests
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {pendingCoordinators.length} awaiting verification
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <UserCheck className="h-4 w-4" />
+                    Verification queue
+                  </div>
+                </div>
+
+                {pendingCoordinators.length === 0 ? (
+                  <p className="px-6 py-8 text-sm text-slate-400">
+                    No coordinator requests right now.
+                  </p>
+                ) : (
+                  <div className="w-full overflow-auto">
+                    <table className="w-full table-fixed text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Email
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Program
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Contact
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {pendingCoordinators.map((coordinator) => (
+                          <tr
+                            key={coordinator.id}
+                            className="hover:bg-slate-50"
+                          >
+                            <td className="px-6 py-3 align-top">
+                              <p className="text-sm font-medium text-slate-900">
+                                {coordinator.full_name || "—"}
+                              </p>
+                            </td>
+                            <td className="px-6 py-3 align-top text-slate-500">
+                              {coordinator.email}
+                            </td>
+                            <td className="px-6 py-3 align-top">
+                              <Badge variant="secondary">
+                                {coordinator.program_id || "N/A"}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-3 align-top text-slate-500">
+                              {coordinator.contact_number || "—"}
+                            </td>
+                            <td className="px-6 py-3 align-top text-right">
+                              <Link
+                                href={`/coordinator/verifications/${coordinator.id}`}
+                                className="rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                              >
+                                View
+                              </Link>
                             </td>
                           </tr>
                         ))}
