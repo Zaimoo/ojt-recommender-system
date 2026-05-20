@@ -7,6 +7,23 @@ export type ApplyActionResult =
   | { success: true; warning?: string }
   | { error: string };
 
+export type UpdateStatusResult = { success: true } | { error: string };
+
+const APPLICATION_STATUSES = [
+  "submitted",
+  "under_review",
+  "accepted",
+  "rejected",
+] as const;
+
+type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+function getNextStatuses(current: ApplicationStatus): ApplicationStatus[] {
+  if (current === "submitted") return ["under_review"];
+  if (current === "under_review") return ["accepted", "rejected"];
+  return [];
+}
+
 function toBase64(buffer: ArrayBuffer): string {
   return Buffer.from(buffer).toString("base64");
 }
@@ -15,20 +32,34 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").trim();
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildEmailHtml({
   applicantName,
   applicantEmail,
   companyName,
   coverLetterHtml,
   resumeUrl,
+  projectExperience,
 }: {
   applicantName: string;
   applicantEmail: string;
   companyName: string;
   coverLetterHtml: string;
   resumeUrl: string;
+  projectExperience: string | null;
 }): string {
   const year = new Date().getFullYear();
+  const projectExperienceHtml = projectExperience
+    ? `<p style="margin:0;font-size:15px;color:#334155;line-height:1.7;">${escapeHtml(projectExperience)}</p>`
+    : `<p style="margin:0;font-size:15px;color:#94a3b8;line-height:1.7;">Not provided.</p>`;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,6 +131,16 @@ function buildEmailHtml({
               <div style="font-size:15px;color:#334155;line-height:1.7;">
                 ${coverLetterHtml}
               </div>
+            </td>
+          </tr>
+
+          <!-- Project Experience -->
+          <tr>
+            <td style="padding:24px 40px 0 40px;">
+              <h2 style="margin:0 0 12px 0;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:600;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">
+                Project Experience
+              </h2>
+              ${projectExperienceHtml}
             </td>
           </tr>
 
@@ -287,6 +328,7 @@ export async function applyToCompany(
         companyName: company.name,
         coverLetterHtml,
         resumeUrl,
+        projectExperience: message,
       }),
       attachment: attachments,
     }),
@@ -305,5 +347,57 @@ export async function applyToCompany(
   if (attachmentWarning) {
     return { success: true, warning: attachmentWarning };
   }
+  return { success: true };
+}
+
+export async function updateApplicationStatus(
+  formData: FormData,
+): Promise<UpdateStatusResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Please log in first." };
+
+  const applicationId = (formData.get("application_id") as string)?.trim();
+  const nextStatus = (formData.get("next_status") as string)?.trim() as
+    | ApplicationStatus
+    | undefined;
+
+  if (!applicationId) return { error: "Missing application id." };
+  if (!nextStatus || !APPLICATION_STATUSES.includes(nextStatus)) {
+    return { error: "Invalid status." };
+  }
+
+  const { data: application, error } = await supabase
+    .from("company_applications")
+    .select("id, status")
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !application) return { error: "Application not found." };
+
+  const currentStatus = application.status as ApplicationStatus;
+  if (!APPLICATION_STATUSES.includes(currentStatus)) {
+    return { error: "Unknown current status." };
+  }
+
+  const allowedNext = getNextStatuses(currentStatus);
+  if (!allowedNext.includes(nextStatus)) {
+    return { error: "Invalid status transition." };
+  }
+
+  const { error: updateError } = await supabase
+    .from("company_applications")
+    .update({ status: nextStatus })
+    .eq("id", applicationId)
+    .eq("user_id", user.id);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/dashboard/applications");
+  revalidatePath(`/dashboard/applications/${applicationId}`);
   return { success: true };
 }

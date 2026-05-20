@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { updateApplicationStatus } from "@/app/actions/application";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentSidebar } from "../../_components/student-sidebar";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -36,6 +38,19 @@ function prettyStatus(status: string) {
   return status.replace(/_/g, " ");
 }
 
+function nextStatusOptions(status: string) {
+  if (status === "submitted") {
+    return [{ value: "under_review", label: "Under Review" }];
+  }
+  if (status === "under_review") {
+    return [
+      { value: "accepted", label: "Accepted" },
+      { value: "rejected", label: "Rejected" },
+    ];
+  }
+  return [];
+}
+
 export default async function ApplicationDetailsPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
@@ -61,6 +76,13 @@ export default async function ApplicationDetailsPage({ params }: Props) {
   const { data: application, error } = applicationRes;
 
   if (error || !application) notFound();
+
+  const statusOptions = nextStatusOptions(application.status);
+
+  const updateStatusAction = async (formData: FormData) => {
+    "use server";
+    await updateApplicationStatus(formData);
+  };
 
   const company = Array.isArray(application.company)
     ? application.company[0]
@@ -103,6 +125,46 @@ export default async function ApplicationDetailsPage({ params }: Props) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs uppercase text-slate-500">
+                    Update status
+                  </p>
+                  {statusOptions.length === 0 ? (
+                    <p className="mt-2 text-sm text-slate-600">
+                      This application is already finalized.
+                    </p>
+                  ) : (
+                    <form
+                      action={updateStatusAction}
+                      className="mt-3 flex flex-wrap items-center gap-3"
+                    >
+                      <input
+                        type="hidden"
+                        name="application_id"
+                        value={application.id}
+                      />
+                      <select
+                        name="next_status"
+                        defaultValue={statusOptions[0].value}
+                        className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        {statusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Update status
+                      </Button>
+                    </form>
+                  )}
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-lg border border-slate-200 p-4">
                     <p className="text-xs uppercase text-slate-500">
