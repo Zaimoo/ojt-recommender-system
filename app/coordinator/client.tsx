@@ -32,6 +32,7 @@ interface StudentSummary {
   program_id: ProgramId | null;
   contact_number: string | null;
   student_id: string | null;
+  created_at: string;
 }
 
 interface StudentWithTimestamp extends StudentSummary {
@@ -388,6 +389,9 @@ export function CoordinatorPanelClient({
                           <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
                             Joined
                           </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Action
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
@@ -413,7 +417,15 @@ export function CoordinatorPanelClient({
                               {student.contact_number || "—"}
                             </td>
                             <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
-                              —
+                              {formatDate(student.created_at)}
+                            </td>
+                            <td className="px-6 py-3 align-top text-right">
+                              <Link
+                                href={`/coordinator/students/${student.id}`}
+                                className="rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                              >
+                                View
+                              </Link>
                             </td>
                           </tr>
                         ))}

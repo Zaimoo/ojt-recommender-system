@@ -42,7 +42,9 @@ export default async function CoordinatorPage({ searchParams }: Props) {
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")
-      .select("id, full_name, email, program_id, contact_number, student_id")
+      .select(
+        "id, full_name, email, program_id, contact_number, student_id, created_at",
+      )
       .eq("role", "student"),
     supabase
       .from("profiles")

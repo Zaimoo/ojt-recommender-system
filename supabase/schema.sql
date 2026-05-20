@@ -1,4 +1,4 @@
- BN         -- ═══════════════════════════════════════════════════════════════
+ -- ═══════════════════════════════════════════════════════════════
 -- OJT Company Recommendation System – Supabase SQL Schema
 -- Run this in the Supabase SQL Editor (Dashboard → SQL)
 -- ═══════════════════════════════════════════════════════════════
@@ -232,6 +232,12 @@ drop policy if exists "Students can read own company applications" on public.com
 create policy "Students can read own company applications"
   on public.company_applications for select
   using (auth.uid() = user_id);
+
+drop policy if exists "Students can update own company applications" on public.company_applications;
+create policy "Students can update own company applications"
+  on public.company_applications for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 drop policy if exists "Coordinators can read company applications" on public.company_applications;
 create policy "Coordinators can read company applications"
