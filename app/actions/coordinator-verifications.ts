@@ -5,13 +5,21 @@ import { createClient } from "@/lib/supabase/server";
 
 export type VerificationActionResult = { success: true } | { error: string };
 
-async function ensureVerifiedCoordinator() {
+type VerificationAuthResult =
+  | {
+      ok: true;
+      supabase: Awaited<ReturnType<typeof createClient>>;
+      userId: string;
+    }
+  | { ok: false; error: string };
+
+async function ensureVerifiedCoordinator(): Promise<VerificationAuthResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Not authenticated" } as const;
+  if (!user) return { ok: false, error: "Not authenticated" };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -23,10 +31,10 @@ async function ensureVerifiedCoordinator() {
     profile?.role !== "coordinator" ||
     profile?.coordinator_status !== "approved"
   ) {
-    return { error: "Not authorized" } as const;
+    return { ok: false, error: "Not authorized" };
   }
 
-  return { supabase, userId: user.id } as const;
+  return { ok: true, supabase, userId: user.id };
 }
 
 export async function approveCoordinator(
@@ -36,7 +44,7 @@ export async function approveCoordinator(
   if (!userId) return { error: "Missing user id." };
 
   const auth = await ensureVerifiedCoordinator();
-  if ("error" in auth) return auth;
+  if (!auth.ok) return { error: auth.error };
 
   const { error } = await auth.supabase
     .from("profiles")
@@ -64,7 +72,7 @@ export async function denyCoordinator(
   if (!reason) return { error: "Please provide a reason for denial." };
 
   const auth = await ensureVerifiedCoordinator();
-  if ("error" in auth) return auth;
+  if (!auth.ok) return { error: auth.error };
 
   const { error } = await auth.supabase
     .from("profiles")

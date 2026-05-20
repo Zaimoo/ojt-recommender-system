@@ -53,6 +53,16 @@ export default async function CoordinatorVerificationPage({ params }: Props) {
     redirect("/coordinator?tab=verifications");
   }
 
+  const approveAction = async (formData: FormData) => {
+    "use server";
+    await approveCoordinator(formData);
+  };
+
+  const denyAction = async (formData: FormData) => {
+    "use server";
+    await denyCoordinator(formData);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <CoordinatorSidebar profile={profile} active="verifications" />
@@ -113,7 +123,7 @@ export default async function CoordinatorVerificationPage({ params }: Props) {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <form
-                action={approveCoordinator}
+                action={approveAction}
                 className="rounded-xl border border-emerald-200 bg-white p-6 shadow-sm"
               >
                 <input type="hidden" name="user_id" value={coordinator.id} />
@@ -131,7 +141,7 @@ export default async function CoordinatorVerificationPage({ params }: Props) {
               </form>
 
               <form
-                action={denyCoordinator}
+                action={denyAction}
                 className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"
               >
                 <input type="hidden" name="user_id" value={coordinator.id} />
