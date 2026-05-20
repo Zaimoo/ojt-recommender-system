@@ -145,7 +145,7 @@ export default async function CoordinatorStudentPage({ params }: Props) {
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {studentProfile?.technical_skills?.length ? (
-                  studentProfile.technical_skills.map((skill) => (
+                  studentProfile.technical_skills.map((skill: string) => (
                     <Badge key={skill} variant="secondary">
                       {skill}
                     </Badge>
