@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { PROGRAM_OPTIONS, type ProgramOption } from "@/lib/constants/programs";
 import { redirect } from "next/navigation";
 
 // ─────────────────────────────────────────────────────────────
@@ -16,18 +15,10 @@ export async function signUp(formData: FormData) {
   const fullName = formData.get("full_name") as string;
   const contactNumber = (formData.get("contact_number") as string) ?? "";
   const studentId = (formData.get("student_id") as string) ?? "";
-  const assignedProgram = (formData.get("assigned_program") as string) ?? "";
-  const requestedRole = (formData.get("role") as string) || "student";
-  const role = requestedRole === "coordinator" ? "coordinator" : "student";
+  const role = "student" as const;
 
-  const programId = assignedProgram.trim().toUpperCase() as ProgramOption;
-
-  if (role === "student" && !studentId.trim()) {
+  if (!studentId.trim()) {
     return { error: "Student ID number is required." };
-  }
-
-  if (role === "coordinator" && !PROGRAM_OPTIONS.includes(programId)) {
-    return { error: "Please select an assigned program." };
   }
 
   try {
@@ -40,7 +31,7 @@ export async function signUp(formData: FormData) {
           role,
           contact_number: contactNumber.trim(),
           student_id: studentId.trim(),
-          program_id: role === "coordinator" ? programId : null,
+          program_id: null,
         },
       },
     });
@@ -50,7 +41,7 @@ export async function signUp(formData: FormData) {
     }
 
     return {
-      redirectTo: role === "coordinator" ? "/coordinator" : "/dashboard",
+      redirectTo: "/dashboard",
     };
   } catch (err) {
     console.error("[signUp] Unexpected error:", err);
@@ -82,28 +73,18 @@ export async function signIn(formData: FormData) {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, coordinator_status")
+        .select("role")
         .eq("id", user.id)
         .single();
 
       const role = profile?.role;
-
-      if (
-        role === "coordinator" &&
-        profile?.coordinator_status !== "approved"
-      ) {
-        await supabase.auth.signOut();
-        const status = profile?.coordinator_status ?? "pending";
-        return {
-          error:
-            status === "denied"
-              ? "Your coordinator access request was denied. Please contact support."
-              : "Your coordinator account is pending verification. Please wait for approval.",
-        };
-      }
-
       return {
-        redirectTo: role === "coordinator" ? "/coordinator" : "/dashboard",
+        redirectTo:
+          role === "superadmin"
+            ? "/superadmin"
+            : role === "coordinator"
+              ? "/coordinator"
+              : "/dashboard",
       };
     }
 

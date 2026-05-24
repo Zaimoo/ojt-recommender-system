@@ -34,6 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
+    let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+    async function refreshSessionIfNeeded() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) return;
+        const expiresAt = data.session.expires_at ?? 0;
+        const expiresInMs = expiresAt * 1000 - Date.now();
+        if (expiresInMs < 10 * 60 * 1000) {
+          await supabase.auth.refreshSession();
+        }
+      } catch (err) {
+        console.warn("[auth] Session refresh failed:", err);
+      }
+    }
 
     // Single listener handles both the initial session and all
     // subsequent changes, avoiding a parallel getUser() call that
@@ -59,7 +74,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     );
 
-    return () => subscription.unsubscribe();
+    refreshTimer = setInterval(refreshSessionIfNeeded, 10 * 60 * 1000);
+    const handleFocus = () => {
+      refreshSessionIfNeeded();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshSessionIfNeeded();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      subscription.unsubscribe();
+      if (refreshTimer) clearInterval(refreshTimer);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   const signOut = async () => {

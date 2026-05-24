@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { StudentSidebar } from "@/app/dashboard/_components/student-sidebar";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
+import { SuperadminSidebar } from "@/app/superadmin/_components/superadmin-sidebar";
 import { MapPin, Mail, Phone, Globe, User, ArrowLeft } from "lucide-react";
 
 interface Props {
@@ -33,15 +34,23 @@ export default async function CompanyDetailsPage({ params }: Props) {
   if (companyRes.error || !companyRes.data) notFound();
 
   const company = companyRes.data;
-  const isCoordinator = profileRes.data?.role === "coordinator";
-  const backHref = isCoordinator
-    ? "/coordinator?tab=companies"
-    : "/dashboard/recommendations";
-  const backLabel = isCoordinator
+  const role = profileRes.data?.role;
+  const isCoordinator = role === "coordinator";
+  const isSuperadmin = role === "superadmin";
+  const backHref = isSuperadmin
+    ? "/superadmin?tab=companies"
+    : isCoordinator
+      ? "/coordinator?tab=companies"
+      : "/dashboard/recommendations";
+  const backLabel = isSuperadmin
     ? "Back to companies"
-    : "Back to recommendations";
+    : isCoordinator
+      ? "Back to companies"
+      : "Back to recommendations";
 
-  const sidebar = isCoordinator ? (
+  const sidebar = isSuperadmin ? (
+    <SuperadminSidebar profile={profileRes.data} active="companies" />
+  ) : isCoordinator ? (
     <CoordinatorSidebar profile={profileRes.data} active="companies" />
   ) : (
     <StudentSidebar profile={profileRes.data} active="recommendations" />
@@ -56,7 +65,7 @@ export default async function CompanyDetailsPage({ params }: Props) {
           <h1 className="text-lg font-semibold text-slate-900">
             Company Details
           </h1>
-          {!isCoordinator && (
+          {!isCoordinator && !isSuperadmin && (
             <Link
               href={`/companyDetails/${company.id}/apply`}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
@@ -78,10 +87,14 @@ export default async function CompanyDetailsPage({ params }: Props) {
             {/* Company banner */}
             {company.logo_url ? (
               <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm p-4">
-                <img
+                <Image
                   src={company.logo_url}
                   alt={`${company.name} logo`}
+                  width={640}
+                  height={360}
+                  sizes="(max-width: 768px) 100vw, 640px"
                   className="max-h-64 w-auto max-w-full object-contain"
+                  unoptimized
                 />
               </div>
             ) : (

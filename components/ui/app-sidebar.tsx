@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { signOut } from "@/app/actions/auth";
-import { ChevronLeft, ChevronRight, LogOut, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  type LucideIcon,
+} from "lucide-react";
 import type { Profile } from "@/types";
 
 export interface NavItem {
@@ -16,19 +21,19 @@ export interface NavItem {
 
 interface Props {
   profile: Profile | null;
-  role: "student" | "coordinator";
+  role: "student" | "coordinator" | "superadmin";
   navItems: NavItem[];
 }
 
 export function AppSidebar({ profile, role, navItems }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
     try {
-      const stored = localStorage.getItem("sidebar-collapsed");
-      if (stored === "true") setCollapsed(true);
-    } catch {}
-  }, []);
+      return localStorage.getItem("sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
 
   function toggleCollapse() {
     setCollapsed((prev) => {
@@ -42,7 +47,12 @@ export function AppSidebar({ profile, role, navItems }: Props) {
 
   const displayName = profile?.full_name || profile?.email || "User";
   const initials = displayName[0]?.toUpperCase() ?? "U";
-  const roleLabel = role === "coordinator" ? "Coordinator" : "Student";
+  const roleLabel =
+    role === "superadmin"
+      ? "Super Admin"
+      : role === "coordinator"
+        ? "Coordinator"
+        : "Student";
 
   return (
     <aside
@@ -54,15 +64,34 @@ export function AppSidebar({ profile, role, navItems }: Props) {
         <div className="flex min-w-0 items-center gap-3 overflow-hidden">
           {/* Logo mark */}
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z" fill="white" fillOpacity="0.3" stroke="white" strokeWidth="1.2"/>
-              <path d="M8 5L11 6.75V10.25L8 12L5 10.25V6.75L8 5Z" fill="white"/>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z"
+                fill="white"
+                fillOpacity="0.3"
+                stroke="white"
+                strokeWidth="1.2"
+              />
+              <path
+                d="M8 5L11 6.75V10.25L8 12L5 10.25V6.75L8 5Z"
+                fill="white"
+              />
             </svg>
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">OJT Recommender</p>
-              <p className="truncate text-xs text-slate-500">{roleLabel} Portal</p>
+              <p className="truncate text-sm font-semibold text-slate-900">
+                OJT Recommender
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {roleLabel} Portal
+              </p>
             </div>
           )}
         </div>
@@ -149,9 +178,19 @@ export function AppSidebar({ profile, role, navItems }: Props) {
         </div>
 
         {/* Sign out */}
-        <form action={signOut} className="w-full">
+        <div className="w-full">
           <button
-            type="submit"
+            type="button"
+            onClick={async () => {
+              try {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              } catch (err) {
+                console.error("Sign out failed:", err);
+                window.location.href = "/login";
+              }
+            }}
             title="Sign Out"
             className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-all hover:bg-red-50 hover:text-red-600 ${
               collapsed ? "justify-center" : ""
@@ -165,7 +204,7 @@ export function AppSidebar({ profile, role, navItems }: Props) {
               </span>
             )}
           </button>
-        </form>
+        </div>
       </div>
     </aside>
   );

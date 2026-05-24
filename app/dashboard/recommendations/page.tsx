@@ -24,11 +24,13 @@ export default async function RecommendationsPage() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center border-b border-slate-200 bg-white px-8">
-          <h1 className="text-lg font-semibold text-slate-900">Recommendations</h1>
+          <h1 className="text-lg font-semibold text-slate-900">
+            Recommendations
+          </h1>
         </header>
 
         <main className="flex-1 overflow-auto p-6 md:p-8">
-          <RecommendationsClient />
+          <RecommendationsClient cacheKey={profile?.id ?? "anonymous"} />
         </main>
       </div>
     </div>

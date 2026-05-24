@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { PROGRAM_OPTIONS, type ProgramOption } from "@/lib/constants/programs";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/app/actions/audit";
 
 type CompanyPayload = {
   name: string;
@@ -125,13 +126,25 @@ export async function createCompany(
     parsed.payload.logo_url = uploaded.publicUrl;
   }
 
-  const { error } = await supabase
+  const { data: createdCompany, error } = await supabase
     .from("companies")
-    .insert({ ...parsed.payload, created_by: user.id });
+    .insert({ ...parsed.payload, created_by: user.id })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+
+  if (createdCompany?.id) {
+    await logAudit({
+      actorId: user.id,
+      action: "company.create",
+      entityType: "company",
+      entityId: createdCompany.id,
+    });
+  }
 
   revalidatePath("/coordinator");
   revalidatePath("/dashboard");
+  revalidatePath("/superadmin");
   return { success: true };
 }
 
@@ -139,6 +152,10 @@ export async function updateCompany(
   formData: FormData,
 ): Promise<CompanyActionResult> {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const id = (formData.get("id") as string)?.trim();
   if (!id) return { error: "Missing company id." };
@@ -160,8 +177,18 @@ export async function updateCompany(
 
   if (error) return { error: error.message };
 
+  if (user) {
+    await logAudit({
+      actorId: user.id,
+      action: "company.update",
+      entityType: "company",
+      entityId: id,
+    });
+  }
+
   revalidatePath("/coordinator");
   revalidatePath("/dashboard");
+  revalidatePath("/superadmin");
   revalidatePath(`/companyDetails/${id}`);
   return { success: true };
 }
@@ -171,14 +198,28 @@ export async function deleteCompany(
 ): Promise<CompanyActionResult> {
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const id = (formData.get("id") as string)?.trim();
   if (!id) return { error: "Missing company id." };
 
   const { error } = await supabase.from("companies").delete().eq("id", id);
   if (error) return { error: error.message };
 
+  if (user) {
+    await logAudit({
+      actorId: user.id,
+      action: "company.delete",
+      entityType: "company",
+      entityId: id,
+    });
+  }
+
   revalidatePath("/coordinator");
   revalidatePath("/dashboard");
+  revalidatePath("/superadmin");
   revalidatePath(`/companyDetails/${id}`);
   return { success: true };
 }

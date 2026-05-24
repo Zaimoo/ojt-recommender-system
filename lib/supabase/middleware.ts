@@ -37,7 +37,8 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPath =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/coordinator") ||
-    pathname.startsWith("/companyDetails");
+    pathname.startsWith("/companyDetails") ||
+    pathname.startsWith("/superadmin");
 
   if (!user) {
     if (isProtectedPath) {
@@ -50,12 +51,11 @@ export async function updateSession(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, coordinator_status")
+    .select("role")
     .eq("id", user.id)
     .single();
 
   const role = profile?.role as string | undefined;
-  const coordinatorStatus = profile?.coordinator_status as string | undefined;
 
   if (!role) {
     if (pathname === "/login" || pathname === "/register") {
@@ -66,32 +66,36 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  if (role === "coordinator" && coordinatorStatus !== "approved") {
-    if (pathname !== "/login" && pathname !== "/register") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
-    return supabaseResponse;
-  }
-
   if (pathname.startsWith("/coordinator")) {
     if (role !== "coordinator") {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = role === "superadmin" ? "/superadmin" : "/dashboard";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  if (pathname.startsWith("/superadmin")) {
+    if (role !== "superadmin") {
+      const url = request.nextUrl.clone();
+      url.pathname = role === "coordinator" ? "/coordinator" : "/dashboard";
       return NextResponse.redirect(url);
     }
   }
 
   if (pathname.startsWith("/dashboard") && role !== "student") {
     const url = request.nextUrl.clone();
-    url.pathname = "/coordinator";
+    url.pathname = role === "superadmin" ? "/superadmin" : "/coordinator";
     return NextResponse.redirect(url);
   }
 
   if (pathname === "/login" || pathname === "/register") {
     const url = request.nextUrl.clone();
-    url.pathname = role === "coordinator" ? "/coordinator" : "/dashboard";
+    url.pathname =
+      role === "superadmin"
+        ? "/superadmin"
+        : role === "coordinator"
+          ? "/coordinator"
+          : "/dashboard";
     return NextResponse.redirect(url);
   }
 

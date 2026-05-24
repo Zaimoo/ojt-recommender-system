@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/app/actions/audit";
 
 export type ApplyActionResult =
   | { success: true; warning?: string }
@@ -396,6 +397,14 @@ export async function updateApplicationStatus(
     .eq("user_id", user.id);
 
   if (updateError) return { error: updateError.message };
+
+  await logAudit({
+    actorId: user.id,
+    action: "application.status.update",
+    entityType: "company_application",
+    entityId: applicationId,
+    details: { from: currentStatus, to: nextStatus },
+  });
 
   revalidatePath("/dashboard/applications");
   revalidatePath(`/dashboard/applications/${applicationId}`);
