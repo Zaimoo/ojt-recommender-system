@@ -35,21 +35,26 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* ── Left: Brand panel ─── */}
-      <div className="hidden flex-col justify-between bg-gradient-to-br from-blue-700 to-blue-500 p-12 lg:flex lg:w-5/12">
+      <div className="hidden flex-col justify-between bg-linear-to-br from-blue-700 to-blue-500 p-12 lg:flex lg:w-5/12">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
             <Briefcase className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-white">OJT Recommender</span>
+          <span className="text-lg font-semibold text-white">
+            OJT Recommender
+          </span>
         </div>
 
         <div className="space-y-6">
           <div className="space-y-3">
             <h1 className="text-4xl font-bold leading-tight text-white">
-              Find your perfect<br />OJT company.
+              Find your perfect
+              <br />
+              OJT company.
             </h1>
             <p className="text-blue-100 leading-relaxed">
-              AI-powered recommendations that match your skills and program to the right partner companies.
+              AI-powered recommendations that match your skills and program to
+              the right partner companies.
             </p>
           </div>
 
@@ -61,8 +66,18 @@ export default function LoginPage() {
             ].map((item) => (
               <div key={item} className="flex items-center gap-3">
                 <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/25">
-                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 12 12">
-                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg
+                    className="h-3 w-3 text-white"
+                    fill="none"
+                    viewBox="0 0 12 12"
+                  >
+                    <path
+                      d="M2 6l3 3 5-5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
                 <span className="text-sm text-blue-50">{item}</span>
@@ -71,7 +86,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-blue-200">© {new Date().getFullYear()} OJT Recommender System</p>
+        <p className="text-xs text-blue-200">
+          © {new Date().getFullYear()} OJT Recommender System
+        </p>
       </div>
 
       {/* ── Right: Login form ─── */}
@@ -82,12 +99,16 @@ export default function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600">
               <Briefcase className="h-4 w-4 text-white" />
             </div>
-            <span className="font-semibold text-slate-900">OJT Recommender</span>
+            <span className="font-semibold text-slate-900">
+              OJT Recommender
+            </span>
           </div>
 
           <div className="space-y-1">
             <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-            <p className="text-sm text-slate-500">Sign in to your account to continue</p>
+            <p className="text-sm text-slate-500">
+              Sign in to your account to continue
+            </p>
           </div>
 
           <form action={handleSubmit} className="space-y-5">
@@ -98,7 +119,10 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+              <Label
+                htmlFor="email"
+                className="text-sm font-medium text-slate-700"
+              >
                 Email address
               </Label>
               <Input
@@ -112,7 +136,10 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium text-slate-700"
+              >
                 Password
               </Label>
               <Input
@@ -137,7 +164,10 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-semibold text-blue-600 hover:underline">
+            <Link
+              href="/register"
+              className="font-semibold text-blue-600 hover:underline"
+            >
               Create one
             </Link>
           </p>

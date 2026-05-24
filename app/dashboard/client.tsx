@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   updateStudentSkills,
   updateStudentProgram,
@@ -10,7 +10,6 @@ import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { StudentSidebar } from "./_components/student-sidebar";
 import { Sparkles, FileText, CheckCircle2, Circle } from "lucide-react";
 import type { Profile, StudentProfile } from "@/types";
@@ -46,7 +45,9 @@ export function StudentDashboardClient({
 
   function getActiveSkillToken(value: string) {
     const lastCommaIndex = value.lastIndexOf(",");
-    return lastCommaIndex >= 0 ? value.slice(lastCommaIndex + 1).trim() : value.trim();
+    return lastCommaIndex >= 0
+      ? value.slice(lastCommaIndex + 1).trim()
+      : value.trim();
   }
 
   function applySkillSuggestion(suggestion: string) {
@@ -62,23 +63,44 @@ export function StudentDashboardClient({
   }
 
   const activeSkillToken = getActiveSkillToken(skillsInput);
-  const selectedSkills = skillsInput.split(",").map((s) => s.trim()).filter(Boolean);
+  const selectedSkills = skillsInput
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const filteredSkillSuggestions = skillSuggestions
     .filter((s) => {
       if (!activeSkillToken) return false;
-      return s.toLowerCase().includes(activeSkillToken.toLowerCase()) && !selectedSkills.includes(s);
+      return (
+        s.toLowerCase().includes(activeSkillToken.toLowerCase()) &&
+        !selectedSkills.includes(s)
+      );
     })
     .slice(0, 8);
 
-  useEffect(() => {
-    setSkillHighlightIndex(0);
-  }, [activeSkillToken, filteredSkillSuggestions.length]);
+  const clampedHighlightIndex =
+    skillHighlightIndex >= filteredSkillSuggestions.length
+      ? 0
+      : skillHighlightIndex;
 
   function handleSkillsKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (filteredSkillSuggestions.length === 0) return;
-    if (event.key === "ArrowDown") { event.preventDefault(); setSkillHighlightIndex((p) => (p + 1 >= filteredSkillSuggestions.length ? 0 : p + 1)); }
-    if (event.key === "ArrowUp") { event.preventDefault(); setSkillHighlightIndex((p) => (p - 1 < 0 ? filteredSkillSuggestions.length - 1 : p - 1)); }
-    if (event.key === "Enter") { event.preventDefault(); const s = filteredSkillSuggestions[skillHighlightIndex]; if (s) applySkillSuggestion(s); }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSkillHighlightIndex((p) =>
+        p + 1 >= filteredSkillSuggestions.length ? 0 : p + 1,
+      );
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSkillHighlightIndex((p) =>
+        p - 1 < 0 ? filteredSkillSuggestions.length - 1 : p - 1,
+      );
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const s = filteredSkillSuggestions[clampedHighlightIndex];
+      if (s) applySkillSuggestion(s);
+    }
     if (event.key === "Escape") setSkillHighlightIndex(0);
   }
 
@@ -87,11 +109,16 @@ export function StudentDashboardClient({
     { label: "Contact number", done: !!profile?.contact_number },
     { label: "Student ID", done: !!profile?.student_id },
     { label: "Program", done: !!profile?.program_id },
-    { label: "Skills", done: (studentProfile?.technical_skills?.length ?? 0) > 0 },
+    {
+      label: "Skills",
+      done: (studentProfile?.technical_skills?.length ?? 0) > 0,
+    },
     { label: "Project experience", done: !!studentProfile?.project_exp },
   ];
   const completedCount = completionItems.filter((i) => i.done).length;
-  const completionPercent = Math.round((completedCount / completionItems.length) * 100);
+  const completionPercent = Math.round(
+    (completedCount / completionItems.length) * 100,
+  );
 
   const firstName = profile?.full_name?.split(" ")[0] || "there";
 
@@ -103,14 +130,17 @@ export function StudentDashboardClient({
         {/* Header */}
         <header className="flex h-16 shrink-0 items-center border-b border-slate-200 bg-white px-8">
           <div>
-            <h1 className="text-lg font-semibold text-slate-900">Hello, {firstName} 👋</h1>
-            <p className="text-xs text-slate-500">Here&apos;s your OJT dashboard</p>
+            <h1 className="text-lg font-semibold text-slate-900">
+              Hello, {firstName} 👋
+            </h1>
+            <p className="text-xs text-slate-500">
+              Here&apos;s your OJT dashboard
+            </p>
           </div>
         </header>
 
         <main className="flex-1 overflow-auto p-6 md:p-8">
           <div className="mx-auto max-w-5xl space-y-6">
-
             {/* Quick actions */}
             <div className="grid gap-4 sm:grid-cols-2">
               <Link
@@ -121,8 +151,12 @@ export function StudentDashboardClient({
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">Get Recommendations</p>
-                  <p className="text-xs text-slate-500">AI-matched companies for your skills</p>
+                  <p className="font-semibold text-slate-900">
+                    Get Recommendations
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    AI-matched companies for your skills
+                  </p>
                 </div>
               </Link>
 
@@ -134,8 +168,12 @@ export function StudentDashboardClient({
                   <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">My Applications</p>
-                  <p className="text-xs text-slate-500">Track submitted applications</p>
+                  <p className="font-semibold text-slate-900">
+                    My Applications
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Track submitted applications
+                  </p>
                 </div>
               </Link>
             </div>
@@ -144,10 +182,16 @@ export function StudentDashboardClient({
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-slate-900">Profile Completion</p>
-                  <p className="text-xs text-slate-500">Complete your profile to improve matches</p>
+                  <p className="font-semibold text-slate-900">
+                    Profile Completion
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Complete your profile to improve matches
+                  </p>
                 </div>
-                <span className="text-2xl font-bold text-blue-600">{completionPercent}%</span>
+                <span className="text-2xl font-bold text-blue-600">
+                  {completionPercent}%
+                </span>
               </div>
               <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
@@ -157,13 +201,22 @@ export function StudentDashboardClient({
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {completionItems.map((item) => (
-                  <div key={item.label} className="flex items-center gap-2 text-sm">
+                  <div
+                    key={item.label}
+                    className="flex items-center gap-2 text-sm"
+                  >
                     {item.done ? (
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
                     ) : (
                       <Circle className="h-4 w-4 shrink-0 text-slate-300" />
                     )}
-                    <span className={item.done ? "text-slate-600" : "text-slate-400"}>{item.label}</span>
+                    <span
+                      className={
+                        item.done ? "text-slate-600" : "text-slate-400"
+                      }
+                    >
+                      {item.label}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -174,7 +227,9 @@ export function StudentDashboardClient({
               {/* Skills */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <p className="mb-1 font-semibold text-slate-900">Your Skills</p>
-                <p className="mb-4 text-xs text-slate-500">Comma-separated technical skills</p>
+                <p className="mb-4 text-xs text-slate-500">
+                  Comma-separated technical skills
+                </p>
                 <form action={handleSkillsSubmit} className="space-y-4">
                   <div className="relative space-y-2">
                     <Label htmlFor="technical_skills">Technical Skills</Label>
@@ -183,7 +238,10 @@ export function StudentDashboardClient({
                       name="technical_skills"
                       placeholder="React, Python, SQL, Figma"
                       value={skillsInput}
-                      onChange={(e) => { setSkillsInput(e.target.value); setSkillHighlightIndex(0); }}
+                      onChange={(e) => {
+                        setSkillsInput(e.target.value);
+                        setSkillHighlightIndex(0);
+                      }}
                       onKeyDown={handleSkillsKeyDown}
                       ref={skillsInputRef}
                     />
@@ -216,18 +274,30 @@ export function StudentDashboardClient({
                     />
                   </div>
                   {skillMsg && (
-                    <p className={`rounded-lg px-3 py-2 text-sm ${skillMsg.includes("!") && !skillMsg.includes("error") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                    <p
+                      className={`rounded-lg px-3 py-2 text-sm ${skillMsg.includes("!") && !skillMsg.includes("error") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
+                    >
                       {skillMsg}
                     </p>
                   )}
-                  <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700">Save Skills</Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Save Skills
+                  </Button>
                 </form>
               </div>
 
               {/* Program */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="mb-1 font-semibold text-slate-900">Program / Course</p>
-                <p className="mb-4 text-xs text-slate-500">Set your program for eligibility matching</p>
+                <p className="mb-1 font-semibold text-slate-900">
+                  Program / Course
+                </p>
+                <p className="mb-4 text-xs text-slate-500">
+                  Set your program for eligibility matching
+                </p>
                 <form action={handleProgramSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="program_id">Program</Label>
@@ -238,20 +308,29 @@ export function StudentDashboardClient({
                       className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
                       {PROGRAM_OPTIONS.map((p) => (
-                        <option key={p} value={p}>{p}</option>
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
                       ))}
                     </select>
                   </div>
                   {programMsg && (
-                    <p className={`rounded-lg px-3 py-2 text-sm ${programMsg.includes("!") && !programMsg.includes("error") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                    <p
+                      className={`rounded-lg px-3 py-2 text-sm ${programMsg.includes("!") && !programMsg.includes("error") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
+                    >
                       {programMsg}
                     </p>
                   )}
-                  <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700">Save Program</Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Save Program
+                  </Button>
                 </form>
               </div>
             </div>
-
           </div>
         </main>
       </div>

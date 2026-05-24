@@ -1,33 +1,51 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState } from "react";
+import Link from "next/link";
+import { SuperadminSidebar } from "@/app/superadmin/_components/superadmin-sidebar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { AccountForm } from "@/app/account/account-form";
 import {
   createCompany,
   updateCompany,
   deleteCompany,
 } from "@/app/actions/company";
+import { createCoordinatorAccount } from "@/app/actions/superadmin";
 import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
-import { Plus, Pencil, Trash2, X, Building2, Users, Globe } from "lucide-react";
-import type { Profile, Company, ProgramId } from "@/types";
+import {
+  LayoutDashboard,
+  Users,
+  UserCog,
+  Building2,
+  FileText,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Globe,
+} from "lucide-react";
+import type { Profile, ProgramId, Company } from "@/types";
 
 interface StudentSummary {
   id: string;
-  full_name: string;
+  full_name: string | null;
   email: string;
   program_id: ProgramId | null;
   contact_number: string | null;
   student_id: string | null;
   created_at: string;
-  application_status?: string | null;
 }
 
-interface StudentWithTimestamp extends StudentSummary {
+interface CoordinatorSummary {
+  id: string;
+  full_name: string | null;
+  email: string;
+  program_id: ProgramId | null;
+  contact_number: string | null;
   created_at: string;
 }
 
@@ -37,12 +55,23 @@ interface CompanyCreator {
   email: string;
 }
 
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  created_at: string;
+  actor: { full_name: string | null; email: string } | null;
+  details: Record<string, unknown> | null;
+}
+
 interface Props {
   profile: Profile | null;
+  students: StudentSummary[];
+  coordinators: CoordinatorSummary[];
   companies: Company[];
   companyCreators: Record<string, CompanyCreator>;
-  allStudents: StudentSummary[];
-  latestStudents: StudentWithTimestamp[];
+  auditLogs: AuditLogEntry[];
   initialTab?: string;
 }
 
@@ -51,12 +80,31 @@ function normalizeUrl(url: string): string {
   return `https://${url}`;
 }
 
-export function CoordinatorPanelClient({
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function SuperadminPanelClient({
   profile,
+  students,
+  coordinators,
   companies,
   companyCreators,
-  allStudents,
-  latestStudents,
+  auditLogs,
   initialTab,
 }: Props) {
   const skillSuggestions = Array.from(
@@ -64,12 +112,27 @@ export function CoordinatorPanelClient({
   ).sort((a, b) => a.localeCompare(b));
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "students" | "companies"
+    | "dashboard"
+    | "students"
+    | "coordinators"
+    | "companies"
+    | "audit"
+    | "account"
   >(
-    initialTab === "students" || initialTab === "companies"
+    initialTab === "students" ||
+      initialTab === "coordinators" ||
+      initialTab === "companies" ||
+      initialTab === "audit" ||
+      initialTab === "account"
       ? initialTab
       : "dashboard",
   );
+
+  const [showCoordinatorForm, setShowCoordinatorForm] = useState(false);
+  const [coordinatorFormMsg, setCoordinatorFormMsg] = useState<string | null>(
+    null,
+  );
+
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMsg, setFormMsg] = useState<string | null>(null);
@@ -78,6 +141,16 @@ export function CoordinatorPanelClient({
   const requiredSkillsRef = useRef<HTMLInputElement | null>(null);
   const [requiredSkillHighlightIndex, setRequiredSkillHighlightIndex] =
     useState(0);
+
+  async function handleCreateCoordinator(formData: FormData) {
+    const res = await createCoordinatorAccount(formData);
+    if ("error" in res) {
+      setCoordinatorFormMsg(res.error);
+      return;
+    }
+    setCoordinatorFormMsg("Coordinator created successfully!");
+    setShowCoordinatorForm(false);
+  }
 
   async function handleCreate(formData: FormData) {
     const res = await createCompany(formData);
@@ -114,34 +187,6 @@ export function CoordinatorPanelClient({
   }
 
   const editingCompany = companies.find((c) => c.id === editingId);
-
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function statusBadgeVariant(status: string | null) {
-    switch (status) {
-      case "accepted":
-        return "success";
-      case "rejected":
-        return "destructive";
-      case "under_review":
-        return "warning";
-      case "submitted":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  }
-
-  function statusLabel(status: string | null) {
-    if (!status) return "No applications";
-    return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }
 
   function getActiveSkillToken(value: string) {
     const i = value.lastIndexOf(",");
@@ -202,24 +247,38 @@ export function CoordinatorPanelClient({
 
   const tabTitles = {
     dashboard: "Dashboard",
-    students: "All Students",
+    students: "Students",
+    coordinators: "Coordinators",
     companies: "Companies",
+    audit: "Audit Log",
+    account: "Account Settings",
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <CoordinatorSidebar
+      <SuperadminSidebar
         profile={profile}
         active={activeTab}
         onTabChange={setActiveTab}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8">
           <h1 className="text-lg font-semibold text-slate-900">
             {tabTitles[activeTab]}
           </h1>
+          {activeTab === "coordinators" && (
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                setShowCoordinatorForm(true);
+                setCoordinatorFormMsg(null);
+              }}
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Add Coordinator
+            </Button>
+          )}
           {activeTab === "companies" && (
             <Button
               size="sm"
@@ -237,60 +296,252 @@ export function CoordinatorPanelClient({
         </header>
 
         <main className="flex-1 overflow-auto p-6 md:p-8">
-          {/* ── Dashboard Tab ─────────────────────────────── */}
           {activeTab === "dashboard" && (
             <div className="mx-auto max-w-5xl space-y-6">
-              {/* Stat cards */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50">
-                    <Building2 className="h-6 w-6 text-blue-600" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {
+                    label: "Total Students",
+                    value: students.length,
+                    icon: Users,
+                    bg: "bg-emerald-50",
+                    color: "text-emerald-600",
+                  },
+                  {
+                    label: "Total Coordinators",
+                    value: coordinators.length,
+                    icon: UserCog,
+                    bg: "bg-blue-50",
+                    color: "text-blue-600",
+                  },
+                  {
+                    label: "Total Companies",
+                    value: companies.length,
+                    icon: Building2,
+                    bg: "bg-violet-50",
+                    color: "text-violet-600",
+                  },
+                  {
+                    label: "Audit Events",
+                    value: auditLogs.length,
+                    icon: FileText,
+                    bg: "bg-slate-100",
+                    color: "text-slate-600",
+                  },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+                  >
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${stat.bg}`}
+                    >
+                      <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">{stat.label}</p>
+                      <p className="text-3xl font-bold text-slate-900">
+                        {stat.value}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Total Companies</p>
-                    <p className="text-3xl font-bold text-slate-900">
-                      {companies.length}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50">
-                    <Users className="h-6 w-6 text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">
-                      Registered Students
-                    </p>
-                    <p className="text-3xl font-bold text-slate-900">
-                      {allStudents.length}
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              {/* Latest students */}
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <LayoutDashboard className="h-5 w-5 text-slate-500" />
+                  <p className="text-sm text-slate-600">
+                    Coordinator accounts can be added from the Coordinators tab.
+                    Companies can be added from the Companies tab.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "students" && (
+            <div className="mx-auto max-w-6xl">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-4">
+                  <p className="font-semibold text-slate-900">All Students</p>
+                  <p className="text-xs text-slate-500">
+                    {students.length} registered
+                  </p>
+                </div>
+
+                {students.length === 0 ? (
+                  <p className="px-6 py-8 text-sm text-slate-400">
+                    No students yet.
+                  </p>
+                ) : (
+                  <div className="w-full overflow-auto">
+                    <table className="w-full table-fixed text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            ID
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Email
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Program
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Contact
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Joined
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {students.map((student) => (
+                          <tr key={student.id} className="hover:bg-slate-50">
+                            <td className="px-6 py-3 align-top font-mono text-slate-500">
+                              {student.student_id ?? student.id}
+                            </td>
+                            <td className="px-6 py-3 align-top">
+                              <p className="text-sm font-medium text-slate-900">
+                                {student.full_name || "—"}
+                              </p>
+                            </td>
+                            <td className="px-6 py-3 align-top text-slate-500">
+                              {student.email}
+                            </td>
+                            <td className="px-6 py-3 align-top">
+                              <Badge variant="secondary">
+                                {student.program_id || "N/A"}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-3 align-top text-slate-500">
+                              {student.contact_number || "—"}
+                            </td>
+                            <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
+                              {formatDate(student.created_at)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "coordinators" && (
+            <div className="mx-auto max-w-6xl space-y-4">
+              {coordinatorFormMsg && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  {coordinatorFormMsg}
+                </div>
+              )}
+
+              {showCoordinatorForm && (
+                <div className="rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="font-semibold text-slate-900">
+                      New Coordinator
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCoordinatorForm(false);
+                      }}
+                      className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <form action={handleCreateCoordinator} className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>Email</Label>
+                        <Input
+                          name="email"
+                          type="email"
+                          required
+                          placeholder="coordinator@university.edu"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Password</Label>
+                        <Input
+                          name="password"
+                          type="password"
+                          required
+                          placeholder="Minimum 6 characters"
+                          minLength={6}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Full Name</Label>
+                        <Input
+                          name="full_name"
+                          required
+                          placeholder="Jane Doe"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Program</Label>
+                        <select
+                          name="program_id"
+                          required
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">Select a program...</option>
+                          {PROGRAM_OPTIONS.map((program) => (
+                            <option key={program} value={program}>
+                              {program}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Contact Number</Label>
+                        <Input
+                          name="contact_number"
+                          placeholder="+63 9xx xxx xxxx"
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Create Coordinator
+                    </Button>
+                  </form>
+                </div>
+              )}
+
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
                   <p className="font-semibold text-slate-900">
-                    Latest Student Signups
+                    All Coordinators
                   </p>
                   <p className="text-xs text-slate-500">
-                    5 most recent registrations
+                    {coordinators.length} total
                   </p>
                 </div>
 
-                {latestStudents.length === 0 ? (
+                {coordinators.length === 0 ? (
                   <p className="px-6 py-8 text-sm text-slate-400">
-                    No students yet.
+                    No coordinators yet.
                   </p>
                 ) : (
                   <div className="w-full overflow-auto">
                     <table className="w-full table-fixed text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            ID
-                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Name
                           </th>
@@ -309,29 +560,29 @@ export function CoordinatorPanelClient({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
-                        {latestStudents.map((student) => (
-                          <tr key={student.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-3 align-top font-mono text-slate-500">
-                              {student.student_id ?? student.id}
-                            </td>
+                        {coordinators.map((coordinator) => (
+                          <tr
+                            key={coordinator.id}
+                            className="hover:bg-slate-50"
+                          >
                             <td className="px-6 py-3 align-top">
                               <p className="text-sm font-medium text-slate-900">
-                                {student.full_name || "—"}
+                                {coordinator.full_name || "—"}
                               </p>
                             </td>
                             <td className="px-6 py-3 align-top text-slate-500">
-                              {student.email}
+                              {coordinator.email}
                             </td>
                             <td className="px-6 py-3 align-top">
                               <Badge variant="secondary">
-                                {student.program_id || "N/A"}
+                                {coordinator.program_id || "N/A"}
                               </Badge>
                             </td>
                             <td className="px-6 py-3 align-top text-slate-500">
-                              {student.contact_number || "—"}
+                              {coordinator.contact_number || "—"}
                             </td>
                             <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
-                              {formatDate(student.created_at)}
+                              {formatDate(coordinator.created_at)}
                             </td>
                           </tr>
                         ))}
@@ -343,111 +594,8 @@ export function CoordinatorPanelClient({
             </div>
           )}
 
-          {/* ── Students Tab ──────────────────────────────── */}
-          {activeTab === "students" && (
-            <div className="mx-auto max-w-5xl">
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-slate-900">All Students</p>
-                    <p className="text-xs text-slate-500">
-                      {allStudents.length} registered
-                    </p>
-                  </div>
-                </div>
-
-                {allStudents.length === 0 ? (
-                  <p className="px-6 py-8 text-sm text-slate-400">
-                    No students yet.
-                  </p>
-                ) : (
-                  <div className="w-full overflow-auto">
-                    <table className="w-full table-fixed text-sm">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            ID
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Name
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Email
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Program
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Contact
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Joined
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
-                        {allStudents.map((student) => (
-                          <tr key={student.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-3 align-top font-mono text-slate-500">
-                              {student.student_id ?? student.id}
-                            </td>
-                            <td className="px-6 py-3 align-top">
-                              <p className="text-sm font-medium text-slate-900">
-                                {student.full_name || "—"}
-                              </p>
-                            </td>
-                            <td className="px-6 py-3 align-top text-slate-500">
-                              {student.email}
-                            </td>
-                            <td className="px-6 py-3 align-top">
-                              <Badge variant="secondary">
-                                {student.program_id || "N/A"}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-3 align-top text-slate-500">
-                              {student.contact_number || "—"}
-                            </td>
-                            <td className="px-6 py-3 align-top">
-                              <Badge
-                                variant={statusBadgeVariant(
-                                  student.application_status ?? null,
-                                )}
-                              >
-                                {statusLabel(
-                                  student.application_status ?? null,
-                                )}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
-                              {formatDate(student.created_at)}
-                            </td>
-                            <td className="px-6 py-3 align-top text-right">
-                              <Link
-                                href={`/coordinator/students/${student.id}`}
-                                className="rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
-                              >
-                                View
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Companies Tab ─────────────────────────────── */}
           {activeTab === "companies" && (
-            <div className="mx-auto max-w-5xl space-y-4">
+            <div className="mx-auto max-w-6xl space-y-4">
               {formMsg && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                   {formMsg}
@@ -587,11 +735,11 @@ export function CoordinatorPanelClient({
 
                     <div className="space-y-1.5">
                       <Label>Company Overview</Label>
-                      <textarea
+                      <Textarea
                         name="company_overview"
                         rows={3}
                         defaultValue={editingCompany?.company_overview ?? ""}
-                        className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none"
+                        placeholder="What does the company do?"
                       />
                     </div>
 
@@ -758,6 +906,80 @@ export function CoordinatorPanelClient({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {activeTab === "audit" && (
+            <div className="mx-auto max-w-6xl">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-4">
+                  <p className="font-semibold text-slate-900">Audit Log</p>
+                  <p className="text-xs text-slate-500">
+                    {auditLogs.length} entries
+                  </p>
+                </div>
+
+                {auditLogs.length === 0 ? (
+                  <p className="px-6 py-8 text-sm text-slate-400">
+                    No audit events yet.
+                  </p>
+                ) : (
+                  <div className="w-full overflow-auto">
+                    <table className="w-full table-fixed text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Actor
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Action
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Entity
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Time
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {auditLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50">
+                            <td className="px-6 py-3 align-top">
+                              <p className="text-sm font-medium text-slate-900">
+                                {log.actor?.full_name ||
+                                  log.actor?.email ||
+                                  "System"}
+                              </p>
+                              {log.actor?.email && (
+                                <p className="text-xs text-slate-400">
+                                  {log.actor.email}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-6 py-3 align-top text-slate-500">
+                              {log.action}
+                            </td>
+                            <td className="px-6 py-3 align-top text-slate-500">
+                              {log.entity_type}
+                              {log.entity_id ? ` · ${log.entity_id}` : ""}
+                            </td>
+                            <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
+                              {formatDateTime(log.created_at)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "account" && (
+            <div className="mx-auto max-w-2xl">
+              <AccountForm profile={profile} />
             </div>
           )}
         </main>

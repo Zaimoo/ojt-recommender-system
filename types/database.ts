@@ -2,7 +2,7 @@
 // Database types – mirrors the Supabase schema
 // ─────────────────────────────────────────────────────────────
 
-export type UserRole = "student" | "coordinator";
+export type UserRole = "student" | "coordinator" | "superadmin";
 export type ProgramId = "BSIS" | "BSIT" | "BSCS" | "BSCA";
 
 export interface Profile {
@@ -15,10 +15,6 @@ export interface Profile {
   student_id: string | null;
   resume_path: string | null;
   resume_url: string | null;
-  coordinator_status: "pending" | "approved" | "denied";
-  coordinator_reviewed_at: string | null;
-  coordinator_reviewed_by: string | null;
-  coordinator_denied_reason: string | null;
   created_at: string;
 }
 
@@ -63,6 +59,16 @@ export interface CompanyApplication {
   created_at: string;
 }
 
+export interface AuditLog {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Composite / view types used by the UI
 // ─────────────────────────────────────────────────────────────
@@ -102,6 +108,11 @@ export interface Database {
         Row: CompanyApplication;
         Insert: Omit<CompanyApplication, "id" | "created_at">;
         Update: Partial<Omit<CompanyApplication, "id" | "created_at">>;
+      };
+      audit_logs: {
+        Row: AuditLog;
+        Insert: Omit<AuditLog, "id" | "created_at">;
+        Update: Partial<Omit<AuditLog, "id" | "created_at">>;
       };
     };
   };

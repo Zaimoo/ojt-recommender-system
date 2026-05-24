@@ -5,14 +5,66 @@ import { useMemo, useState } from "react";
 import { getRecommendations } from "@/app/actions/recommendations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, CheckCircle, AlertCircle, BarChart3, TrendingUp } from "lucide-react";
+import {
+  Sparkles,
+  CheckCircle,
+  AlertCircle,
+  BarChart3,
+  TrendingUp,
+} from "lucide-react";
 import type { RecommendationResult } from "@/types";
 
-export function RecommendationsClient() {
-  const [recommendations, setRecommendations] = useState<RecommendationResult[]>([]);
-  const [studentSkills, setStudentSkills] = useState<string[]>([]);
+interface Props {
+  cacheKey: string;
+}
+
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+type CachedRecommendations = {
+  recommendations: RecommendationResult[];
+  studentSkills: string[];
+};
+
+function readCachedRecommendations(storageKey: string): CachedRecommendations {
+  if (typeof window === "undefined") {
+    return { recommendations: [], studentSkills: [] };
+  }
+  try {
+    const cachedRaw = localStorage.getItem(storageKey);
+    if (!cachedRaw) return { recommendations: [], studentSkills: [] };
+    const cached = JSON.parse(cachedRaw) as {
+      recommendations: RecommendationResult[];
+      studentSkills: string[];
+      cachedAt: number;
+    };
+    if (Date.now() - cached.cachedAt > CACHE_TTL_MS) {
+      return { recommendations: [], studentSkills: [] };
+    }
+    return {
+      recommendations: cached.recommendations ?? [],
+      studentSkills: cached.studentSkills ?? [],
+    };
+  } catch {
+    return { recommendations: [], studentSkills: [] };
+  }
+}
+
+function RecommendationsClientInner({ cacheKey }: Props) {
+  const storageKey = `recommendations-cache:${cacheKey}`;
+  const cached = useMemo(
+    () => readCachedRecommendations(storageKey),
+    [storageKey],
+  );
+  const [recommendations, setRecommendations] = useState<
+    RecommendationResult[]
+  >(cached.recommendations);
+  const [studentSkills, setStudentSkills] = useState<string[]>(
+    cached.studentSkills,
+  );
   const [loading, setLoading] = useState(false);
   const [recError, setRecError] = useState<string | null>(null);
+  const [lowScore, setLowScore] = useState<number | null>(null);
+  const [lowScoreOpen, setLowScoreOpen] = useState(false);
 
   async function handleGenerateRecommendations() {
     setLoading(true);
@@ -21,8 +73,31 @@ export function RecommendationsClient() {
     if (result.error) {
       setRecError(result.error);
     } else {
-      setRecommendations(result.data ?? []);
-      setStudentSkills(result.studentSkills ?? []);
+      const nextRecommendations = result.data ?? [];
+      const nextSkills = result.studentSkills ?? [];
+      setRecommendations(nextRecommendations);
+      setStudentSkills(nextSkills);
+
+      if (nextRecommendations.length > 0) {
+        const topScore = nextRecommendations[0].hybridScore ?? 0;
+        if (topScore < 30) {
+          setLowScore(topScore);
+          setLowScoreOpen(true);
+        }
+      }
+
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            recommendations: nextRecommendations,
+            studentSkills: nextSkills,
+            cachedAt: Date.now(),
+          }),
+        );
+      } catch {
+        // Ignore cache write errors
+      }
     }
     setLoading(false);
   }
@@ -43,7 +118,8 @@ export function RecommendationsClient() {
     if (recommendations.length === 0) return null;
     const highestMatch = recommendations[0]?.hybridScore ?? 0;
     const averageMatch = Math.round(
-      recommendations.reduce((sum, rec) => sum + rec.hybridScore, 0) / recommendations.length,
+      recommendations.reduce((sum, rec) => sum + rec.hybridScore, 0) /
+        recommendations.length,
     );
     const programMatched = recommendations.filter((r) => r.programMatch).length;
     return { highestMatch, averageMatch, programMatched };
@@ -81,17 +157,42 @@ export function RecommendationsClient() {
       {insights && (
         <div className="grid gap-4 sm:grid-cols-3">
           {[
-            { label: "Highest Match", value: `${insights.highestMatch}%`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-            { label: "Average Match", value: `${insights.averageMatch}%`, icon: BarChart3, color: "text-blue-600", bg: "bg-blue-50" },
-            { label: "Program Matches", value: String(insights.programMatched), icon: CheckCircle, color: "text-violet-600", bg: "bg-violet-50" },
+            {
+              label: "Highest Match",
+              value: `${insights.highestMatch}%`,
+              icon: TrendingUp,
+              color: "text-emerald-600",
+              bg: "bg-emerald-50",
+            },
+            {
+              label: "Average Match",
+              value: `${insights.averageMatch}%`,
+              icon: BarChart3,
+              color: "text-blue-600",
+              bg: "bg-blue-50",
+            },
+            {
+              label: "Program Matches",
+              value: String(insights.programMatched),
+              icon: CheckCircle,
+              color: "text-violet-600",
+              bg: "bg-violet-50",
+            },
           ].map((stat) => (
-            <div key={stat.label} className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stat.bg}`}>
+            <div
+              key={stat.label}
+              className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+            >
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stat.bg}`}
+              >
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
               <div>
                 <p className="text-xs text-slate-500">{stat.label}</p>
-                <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {stat.value}
+                </p>
               </div>
             </div>
           ))}
@@ -101,13 +202,19 @@ export function RecommendationsClient() {
       {/* Score bars */}
       {insights && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="mb-4 font-semibold text-slate-900">Match Score Overview</p>
+          <p className="mb-4 font-semibold text-slate-900">
+            Match Score Overview
+          </p>
           <div className="space-y-3">
             {recommendations.map((rec) => (
               <div key={`viz-${rec.company.id}`}>
                 <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500">
-                  <span className="font-medium text-slate-700">{rec.company.name}</span>
-                  <span className="font-semibold text-slate-900">{rec.hybridScore}%</span>
+                  <span className="font-medium text-slate-700">
+                    {rec.company.name}
+                  </span>
+                  <span className="font-semibold text-slate-900">
+                    {rec.hybridScore}%
+                  </span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div
@@ -126,7 +233,9 @@ export function RecommendationsClient() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
           <Sparkles className="mb-3 h-10 w-10 text-slate-300" />
           <p className="font-medium text-slate-500">No recommendations yet</p>
-          <p className="mt-1 text-sm text-slate-400">Click "Generate Recommendations" to find matches</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Click &quot;Generate Recommendations&quot; to find matches
+          </p>
         </div>
       )}
 
@@ -163,27 +272,67 @@ export function RecommendationsClient() {
                       <Badge
                         key={skill}
                         variant="secondary"
-                        className={matched ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ""}
+                        className={
+                          matched
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : ""
+                        }
                       >
                         {skill}
                       </Badge>
                     );
                   })}
                   {rec.company.required_skills.length > 4 && (
-                    <span className="text-xs text-slate-400">+{rec.company.required_skills.length - 4} more</span>
+                    <span className="text-xs text-slate-400">
+                      +{rec.company.required_skills.length - 4} more
+                    </span>
                   )}
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">
-                <Badge variant={scoreBadgeVariant(rec.hybridScore)} className="text-sm">
+                <Badge
+                  variant={scoreBadgeVariant(rec.hybridScore)}
+                  className="text-sm"
+                >
                   {rec.hybridScore}%
                 </Badge>
-                <span className="text-xs text-blue-500 group-hover:underline">View details →</span>
+                <span className="text-xs text-blue-500 group-hover:underline">
+                  View details →
+                </span>
               </div>
             </Link>
           ))}
         </div>
       )}
+
+      {lowScoreOpen && lowScore !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="h-5 w-5" />
+              <p className="text-sm font-semibold">Low match warning</p>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">
+              Your top recommendation score is <strong>{lowScore}%</strong>,
+              which is below 30%. Consider updating your skills or expanding
+              your search.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <Button
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setLowScoreOpen(false)}
+              >
+                Got it
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+export function RecommendationsClient({ cacheKey }: Props) {
+  return <RecommendationsClientInner key={cacheKey} cacheKey={cacheKey} />;
 }
