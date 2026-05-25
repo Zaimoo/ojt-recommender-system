@@ -217,7 +217,7 @@ export default async function CompanyDetailsPage({ params }: Props) {
             </div>
 
             {/* Apply CTA at bottom (student only) */}
-            {!isCoordinator && (
+            {!isCoordinator && !isSuperadmin && (
               <div className="flex justify-end">
                 <Link
                   href={`/companyDetails/${company.id}/apply`}

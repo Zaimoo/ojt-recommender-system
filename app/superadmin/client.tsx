@@ -14,7 +14,11 @@ import {
   updateCompany,
   deleteCompany,
 } from "@/app/actions/company";
-import { createCoordinatorAccount } from "@/app/actions/superadmin";
+import {
+  createCoordinatorAccount,
+  updateCoordinatorAccount,
+  deleteCoordinatorAccount,
+} from "@/app/actions/superadmin";
 import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import {
   LayoutDashboard,
@@ -129,6 +133,9 @@ export function SuperadminPanelClient({
   );
 
   const [showCoordinatorForm, setShowCoordinatorForm] = useState(false);
+  const [editingCoordinatorId, setEditingCoordinatorId] = useState<
+    string | null
+  >(null);
   const [coordinatorFormMsg, setCoordinatorFormMsg] = useState<string | null>(
     null,
   );
@@ -150,6 +157,28 @@ export function SuperadminPanelClient({
     }
     setCoordinatorFormMsg("Coordinator created successfully!");
     setShowCoordinatorForm(false);
+    setEditingCoordinatorId(null);
+  }
+
+  async function handleUpdateCoordinator(formData: FormData) {
+    const res = await updateCoordinatorAccount(formData);
+    if ("error" in res) {
+      setCoordinatorFormMsg(res.error);
+      return;
+    }
+    setCoordinatorFormMsg("Coordinator updated successfully!");
+    setShowCoordinatorForm(false);
+    setEditingCoordinatorId(null);
+  }
+
+  async function handleDeleteCoordinator(formData: FormData) {
+    if (!confirm("Delete this coordinator account?")) return;
+    const res = await deleteCoordinatorAccount(formData);
+    if ("error" in res) {
+      setCoordinatorFormMsg(res.error);
+      return;
+    }
+    setCoordinatorFormMsg("Coordinator deleted successfully!");
   }
 
   async function handleCreate(formData: FormData) {
@@ -245,6 +274,10 @@ export function SuperadminPanelClient({
     if (event.key === "Escape") setRequiredSkillHighlightIndex(0);
   }
 
+  const editingCoordinator = coordinators.find(
+    (coordinator) => coordinator.id === editingCoordinatorId,
+  );
+
   const tabTitles = {
     dashboard: "Dashboard",
     students: "Students",
@@ -273,6 +306,7 @@ export function SuperadminPanelClient({
               className="bg-blue-600 hover:bg-blue-700"
               onClick={() => {
                 setShowCoordinatorForm(true);
+                setEditingCoordinatorId(null);
                 setCoordinatorFormMsg(null);
               }}
             >
@@ -397,6 +431,9 @@ export function SuperadminPanelClient({
                           <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
                             Joined
                           </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Action
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
@@ -442,16 +479,19 @@ export function SuperadminPanelClient({
                 </div>
               )}
 
-              {showCoordinatorForm && (
+              {(showCoordinatorForm || editingCoordinatorId) && (
                 <div className="rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
                   <div className="mb-4 flex items-center justify-between">
                     <p className="font-semibold text-slate-900">
-                      New Coordinator
+                      {editingCoordinatorId
+                        ? "Edit Coordinator"
+                        : "New Coordinator"}
                     </p>
                     <button
                       type="button"
                       onClick={() => {
                         setShowCoordinatorForm(false);
+                        setEditingCoordinatorId(null);
                       }}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                     >
@@ -459,7 +499,21 @@ export function SuperadminPanelClient({
                     </button>
                   </div>
 
-                  <form action={handleCreateCoordinator} className="space-y-4">
+                  <form
+                    action={
+                      editingCoordinatorId
+                        ? handleUpdateCoordinator
+                        : handleCreateCoordinator
+                    }
+                    className="space-y-4"
+                  >
+                    {editingCoordinatorId && (
+                      <input
+                        type="hidden"
+                        name="id"
+                        value={editingCoordinatorId}
+                      />
+                    )}
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label>Email</Label>
@@ -468,6 +522,7 @@ export function SuperadminPanelClient({
                           type="email"
                           required
                           placeholder="coordinator@university.edu"
+                          defaultValue={editingCoordinator?.email ?? ""}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -475,8 +530,12 @@ export function SuperadminPanelClient({
                         <Input
                           name="password"
                           type="password"
-                          required
-                          placeholder="Minimum 6 characters"
+                          required={!editingCoordinatorId}
+                          placeholder={
+                            editingCoordinatorId
+                              ? "Leave blank to keep current"
+                              : "Minimum 6 characters"
+                          }
                           minLength={6}
                         />
                       </div>
@@ -486,6 +545,7 @@ export function SuperadminPanelClient({
                           name="full_name"
                           required
                           placeholder="Jane Doe"
+                          defaultValue={editingCoordinator?.full_name ?? ""}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -493,6 +553,7 @@ export function SuperadminPanelClient({
                         <select
                           name="program_id"
                           required
+                          defaultValue={editingCoordinator?.program_id ?? ""}
                           className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <option value="">Select a program...</option>
@@ -508,6 +569,9 @@ export function SuperadminPanelClient({
                         <Input
                           name="contact_number"
                           placeholder="+63 9xx xxx xxxx"
+                          defaultValue={
+                            editingCoordinator?.contact_number ?? ""
+                          }
                         />
                       </div>
                     </div>
@@ -517,7 +581,9 @@ export function SuperadminPanelClient({
                       size="sm"
                       className="bg-blue-600 hover:bg-blue-700"
                     >
-                      Create Coordinator
+                      {editingCoordinatorId
+                        ? "Update Coordinator"
+                        : "Create Coordinator"}
                     </Button>
                   </form>
                 </div>
@@ -583,6 +649,40 @@ export function SuperadminPanelClient({
                             </td>
                             <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
                               {formatDate(coordinator.created_at)}
+                            </td>
+                            <td className="px-6 py-3 align-top text-right">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCoordinatorId(coordinator.id);
+                                  setShowCoordinatorForm(false);
+                                  setCoordinatorFormMsg(null);
+                                }}
+                                className="rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                              >
+                                Edit
+                              </button>
+                              <form
+                                action={handleDeleteCoordinator}
+                                className="inline"
+                              >
+                                <input
+                                  type="hidden"
+                                  name="id"
+                                  value={coordinator.id}
+                                />
+                                <input
+                                  type="hidden"
+                                  name="email"
+                                  value={coordinator.email}
+                                />
+                                <button
+                                  type="submit"
+                                  className="ml-2 rounded-md px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                                >
+                                  Delete
+                                </button>
+                              </form>
                             </td>
                           </tr>
                         ))}
