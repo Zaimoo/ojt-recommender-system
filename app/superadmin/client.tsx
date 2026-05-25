@@ -431,9 +431,6 @@ export function SuperadminPanelClient({
                           <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
                             Joined
                           </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
-                            Action
-                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
@@ -611,17 +608,20 @@ export function SuperadminPanelClient({
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Name
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 w-64">
                             Email
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 w-24">
                             Program
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Contact
                           </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Joined
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Actions
                           </th>
                         </tr>
                       </thead>
@@ -636,10 +636,10 @@ export function SuperadminPanelClient({
                                 {coordinator.full_name || "—"}
                               </p>
                             </td>
-                            <td className="px-6 py-3 align-top text-slate-500">
+                            <td className="px-6 py-3 align-top text-slate-500 w-64">
                               {coordinator.email}
                             </td>
-                            <td className="px-6 py-3 align-top">
+                            <td className="px-6 py-3 align-top w-24">
                               <Badge variant="secondary">
                                 {coordinator.program_id || "N/A"}
                               </Badge>
@@ -647,7 +647,7 @@ export function SuperadminPanelClient({
                             <td className="px-6 py-3 align-top text-slate-500">
                               {coordinator.contact_number || "—"}
                             </td>
-                            <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
+                            <td className="px-6 py-3 align-top text-xs text-slate-400">
                               {formatDate(coordinator.created_at)}
                             </td>
                             <td className="px-6 py-3 align-top text-right">
