@@ -182,14 +182,7 @@ export function AppSidebar({ profile, role, navItems }: Props) {
           <button
             type="button"
             onClick={async () => {
-              try {
-                const supabase = createClient();
-                await supabase.auth.signOut();
-                window.location.href = "/login";
-              } catch (err) {
-                console.error("Sign out failed:", err);
-                window.location.href = "/login";
-              }
+              window.location.assign("/logout");
             }}
             title="Sign Out"
             className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-all hover:bg-red-50 hover:text-red-600 ${
