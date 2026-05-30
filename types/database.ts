@@ -29,6 +29,7 @@ export interface Company {
   website_url: string | null;
   contact_number: string | null;
   created_by: string | null;
+  created_by_name: string | null;
   required_skills: string[];
   eligibility_programs: ProgramId[];
   created_at: string;

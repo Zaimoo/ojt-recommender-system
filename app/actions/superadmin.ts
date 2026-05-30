@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createSuperadminClient } from "@/lib/supabase/superadmin";
 import { logAudit } from "@/app/actions/audit";
@@ -56,6 +57,12 @@ export async function createCoordinatorAccount(
   });
 
   if (error || !data.user) {
+    if (error?.message) {
+      console.error(
+        "createCoordinatorAccount: createUser failed",
+        error.message,
+      );
+    }
     return { error: error?.message ?? "Failed to create coordinator account." };
   }
 
@@ -67,6 +74,7 @@ export async function createCoordinatorAccount(
     details: { email },
   });
 
+  revalidatePath("/superadmin");
   return { success: true, userId: data.user.id };
 }
 
@@ -128,6 +136,10 @@ export async function updateCoordinatorAccount(
   );
 
   if (updateError) {
+    console.error(
+      "updateCoordinatorAccount: updateUserById failed",
+      updateError.message,
+    );
     return { error: updateError.message };
   }
 
@@ -142,6 +154,10 @@ export async function updateCoordinatorAccount(
     .eq("id", coordinatorId);
 
   if (profileError) {
+    console.error(
+      "updateCoordinatorAccount: profile update failed",
+      profileError.message,
+    );
     return { error: profileError.message };
   }
 
@@ -153,6 +169,7 @@ export async function updateCoordinatorAccount(
     details: { email },
   });
 
+  revalidatePath("/superadmin");
   return { success: true };
 }
 
@@ -182,10 +199,54 @@ export async function deleteCoordinatorAccount(
 
   if (!coordinatorId) return { error: "Missing coordinator id." };
 
+  const { data: coordinatorProfile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", coordinatorId)
+    .single();
+
+  const createdByName =
+    coordinatorProfile?.full_name?.trim() ||
+    coordinatorProfile?.email ||
+    email ||
+    null;
+
+  if (createdByName) {
+    const { error: nameError } = await supabase
+      .from("companies")
+      .update({ created_by_name: createdByName })
+      .eq("created_by", coordinatorId)
+      .is("created_by_name", null);
+
+    if (nameError) {
+      console.error(
+        "deleteCoordinatorAccount: company name backfill failed",
+        nameError.message,
+      );
+      return { error: nameError.message };
+    }
+  }
+
+  const { error: companyError } = await supabase
+    .from("companies")
+    .update({ created_by: null })
+    .eq("created_by", coordinatorId);
+
+  if (companyError) {
+    console.error(
+      "deleteCoordinatorAccount: company cleanup failed",
+      companyError.message,
+    );
+    return { error: companyError.message };
+  }
+
   const admin = createSuperadminClient();
   const { error } = await admin.auth.admin.deleteUser(coordinatorId);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("deleteCoordinatorAccount: deleteUser failed", error.message);
+    return { error: error.message };
+  }
 
   await logAudit({
     actorId: user.id,
@@ -195,5 +256,6 @@ export async function deleteCoordinatorAccount(
     details: { email },
   });
 
+  revalidatePath("/superadmin");
   return { success: true };
 }

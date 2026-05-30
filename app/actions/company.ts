@@ -15,6 +15,7 @@ type CompanyPayload = {
   website_url: string | null;
   contact_number: string | null;
   created_by?: string | null;
+  created_by_name?: string | null;
   required_skills: string[];
   eligibility_programs: ProgramOption[];
 };
@@ -119,6 +120,18 @@ export async function createCompany(
 
   if (!user) return { error: "Not authenticated" };
 
+  const { data: creatorProfile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .single();
+
+  const createdByName =
+    creatorProfile?.full_name?.trim() ||
+    creatorProfile?.email ||
+    user.email ||
+    null;
+
   const image = formData.get("company_image");
   if (image instanceof File && image.size > 0) {
     const uploaded = await uploadCompanyImage(image);
@@ -128,7 +141,11 @@ export async function createCompany(
 
   const { data: createdCompany, error } = await supabase
     .from("companies")
-    .insert({ ...parsed.payload, created_by: user.id })
+    .insert({
+      ...parsed.payload,
+      created_by: user.id,
+      created_by_name: createdByName,
+    })
     .select("id")
     .single();
   if (error) return { error: error.message };
