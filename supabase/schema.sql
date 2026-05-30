@@ -86,6 +86,7 @@ create table if not exists public.companies (
   website_url           text,
   contact_number        text,
   created_by            uuid references public.profiles(id),
+  created_by_name       text,
   required_skills       text[] not null default '{}',
   eligibility_programs  text[] not null default '{}' check (eligibility_programs <@ array['BSIS','BSIT','BSCS','BSCA']::text[]),
   created_at            timestamptz not null default now(),
@@ -100,6 +101,7 @@ alter table public.companies add column if not exists website_url text;
 alter table public.companies add column if not exists contact_number text;
 alter table public.companies add column if not exists hr_name text;
 alter table public.companies add column if not exists created_by uuid;
+alter table public.companies add column if not exists created_by_name text;
 do $$
 begin
   if not exists (
@@ -112,6 +114,12 @@ begin
       foreign key (created_by) references public.profiles(id);
   end if;
 end $$;
+
+update public.companies as c
+set created_by_name = coalesce(nullif(p.full_name, ''), p.email)
+from public.profiles as p
+where c.created_by = p.id
+  and (c.created_by_name is null or c.created_by_name = '');
 
 alter table public.companies enable row level security;
 

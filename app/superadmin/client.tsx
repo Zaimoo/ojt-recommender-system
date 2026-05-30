@@ -904,6 +904,9 @@ export function SuperadminPanelClient({
                   const creator = company.created_by
                     ? companyCreators[company.created_by]
                     : null;
+                  const creatorLabel = creator
+                    ? creator.full_name || creator.email
+                    : company.created_by_name;
                   return (
                     <div
                       key={company.id}
@@ -941,10 +944,8 @@ export function SuperadminPanelClient({
                             ))}
                           </div>
                           <div className="flex flex-wrap gap-4 pt-1 text-xs text-slate-400">
-                            {creator && (
-                              <span>
-                                Added by: {creator.full_name || creator.email}
-                              </span>
+                            {creatorLabel && (
+                              <span>Added by: {creatorLabel}</span>
                             )}
                             {company.hr_name && (
                               <span>HR: {company.hr_name}</span>
