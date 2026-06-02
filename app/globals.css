@@ -17,6 +17,7 @@ body {
   color: var(--foreground);
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* Thin scrollbar */

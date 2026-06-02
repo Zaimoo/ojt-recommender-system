@@ -89,10 +89,10 @@ export default async function ApplicationDetailsPage({ params }: Props) {
     : application.company;
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <StudentSidebar profile={profileRes.data} active="applications" />
 
-      <div className="flex-1">
+      <div className="flex flex-1 flex-col overflow-hidden">
         <header className="border-b border-slate-200 bg-white shadow-sm">
           <div className="px-8 py-4">
             <h2 className="text-xl font-bold text-slate-900">
@@ -101,7 +101,7 @@ export default async function ApplicationDetailsPage({ params }: Props) {
           </div>
         </header>
 
-        <main className="p-6 md:p-8">
+        <main className="flex-1 overflow-auto p-6 md:p-8">
           <div className="mx-auto max-w-3xl space-y-4">
             <Link
               href="/dashboard/applications"
