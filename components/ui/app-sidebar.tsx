@@ -182,7 +182,10 @@ export function AppSidebar({ profile, role, navItems }: Props) {
         {/* Sign out */}
         <form action={signOut} className="w-full">
           <button
-            type="submit"
+            type="button"
+            onClick={async () => {
+              window.location.assign("/logout");
+            }}
             title="Sign Out"
             className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-all hover:bg-red-50 hover:text-red-600 ${
               collapsed ? "justify-center" : ""
