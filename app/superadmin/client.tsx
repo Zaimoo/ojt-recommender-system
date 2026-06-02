@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountForm } from "@/app/account/account-form";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createCompany,
   updateCompany,
@@ -21,7 +22,6 @@ import {
 } from "@/app/actions/superadmin";
 import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import {
-  LayoutDashboard,
   Users,
   UserCog,
   Building2,
@@ -31,6 +31,8 @@ import {
   Trash2,
   X,
   Globe,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { Profile, ProgramId, Company } from "@/types";
 
@@ -139,6 +141,7 @@ export function SuperadminPanelClient({
   const [coordinatorFormMsg, setCoordinatorFormMsg] = useState<string | null>(
     null,
   );
+  const [coordinatorContactError, setCoordinatorContactError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -148,8 +151,30 @@ export function SuperadminPanelClient({
   const requiredSkillsRef = useRef<HTMLInputElement | null>(null);
   const [requiredSkillHighlightIndex, setRequiredSkillHighlightIndex] =
     useState(0);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [auditPage, setAuditPage] = useState(1);
+
+  function validateCoordinatorContact(formData: FormData): boolean {
+    const contactNumber = (formData.get("contact_number") as string)?.trim();
+    if (contactNumber) {
+      const digits = contactNumber.replace(/\D/g, "");
+      if (digits.length !== 11) {
+        setCoordinatorContactError(
+          "Invalid format. Contact number should be 11 digits long.",
+        );
+        return false;
+      }
+    }
+    setCoordinatorContactError(null);
+    return true;
+  }
 
   async function handleCreateCoordinator(formData: FormData) {
+    if (!validateCoordinatorContact(formData)) return;
     const res = await createCoordinatorAccount(formData);
     if ("error" in res) {
       setCoordinatorFormMsg(res.error);
@@ -161,6 +186,7 @@ export function SuperadminPanelClient({
   }
 
   async function handleUpdateCoordinator(formData: FormData) {
+    if (!validateCoordinatorContact(formData)) return;
     const res = await updateCoordinatorAccount(formData);
     if ("error" in res) {
       setCoordinatorFormMsg(res.error);
@@ -171,9 +197,11 @@ export function SuperadminPanelClient({
     setEditingCoordinatorId(null);
   }
 
-  async function handleDeleteCoordinator(formData: FormData) {
-    if (!confirm("Delete this coordinator account?")) return;
-    const res = await deleteCoordinatorAccount(formData);
+  async function executeDeleteCoordinator(coordinatorId: string, email: string) {
+    const fd = new FormData();
+    fd.append("id", coordinatorId);
+    fd.append("email", email);
+    const res = await deleteCoordinatorAccount(fd);
     if ("error" in res) {
       setCoordinatorFormMsg(res.error);
       return;
@@ -202,9 +230,10 @@ export function SuperadminPanelClient({
     setEditingId(null);
   }
 
-  async function handleDelete(formData: FormData) {
-    if (!confirm("Delete this company?")) return;
-    await deleteCompany(formData);
+  async function executeDeleteCompany(companyId: string) {
+    const fd = new FormData();
+    fd.append("id", companyId);
+    await deleteCompany(fd);
   }
 
   function toggleProgram(program: ProgramId) {
@@ -382,15 +411,144 @@ export function SuperadminPanelClient({
                 ))}
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <LayoutDashboard className="h-5 w-5 text-slate-500" />
-                  <p className="text-sm text-slate-600">
-                    Coordinator accounts can be added from the Coordinators tab.
-                    Companies can be added from the Companies tab.
-                  </p>
-                </div>
-              </div>
+              {/* ── Analytics ─────────────────────────────── */}
+              {(() => {
+                const programLabels: Record<string, string> = {
+                  BSIS: "BSIS", BSIT: "BSIT", BSCS: "BSCS", BSCA: "BSCA",
+                };
+                const programColors: Record<string, string> = {
+                  BSIS: "bg-blue-500", BSIT: "bg-violet-500",
+                  BSCS: "bg-emerald-500", BSCA: "bg-amber-500",
+                };
+                const programCounts = Object.fromEntries(
+                  Object.keys(programLabels).map((p) => [
+                    p,
+                    students.filter((s) => s.program_id === p).length,
+                  ]),
+                );
+                const unassigned = students.filter((s) => !s.program_id).length;
+                const maxCount = Math.max(...Object.values(programCounts), unassigned, 1);
+
+                const skillCounts: Record<string, number> = {};
+                companies.forEach((c) =>
+                  c.required_skills.forEach((sk) => {
+                    skillCounts[sk] = (skillCounts[sk] ?? 0) + 1;
+                  }),
+                );
+                const topSkills = Object.entries(skillCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 10);
+
+                function formatAction(action: string) {
+                  return action
+                    .replace("company.create", "Created company")
+                    .replace("company.update", "Updated company")
+                    .replace("company.delete", "Deleted company")
+                    .replace("coordinator.create", "Created coordinator")
+                    .replace("coordinator.update", "Updated coordinator")
+                    .replace("coordinator.delete", "Deleted coordinator")
+                    .replace("application.status.update", "Updated application")
+                    .replace(/\./g, " ");
+                }
+
+                return (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* Students by program */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <p className="mb-4 font-semibold text-slate-900">
+                        Students by Program
+                      </p>
+                      <div className="space-y-3">
+                        {Object.entries(programLabels).map(([key, label]) => (
+                          <div key={key}>
+                            <div className="mb-1 flex justify-between text-xs text-slate-500">
+                              <span>{label}</span>
+                              <span className="font-medium text-slate-700">
+                                {programCounts[key]}
+                              </span>
+                            </div>
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className={`h-2 rounded-full transition-all duration-500 ${programColors[key]}`}
+                                style={{
+                                  width: `${(programCounts[key] / maxCount) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        {unassigned > 0 && (
+                          <div>
+                            <div className="mb-1 flex justify-between text-xs text-slate-500">
+                              <span>Unassigned</span>
+                              <span className="font-medium text-slate-700">
+                                {unassigned}
+                              </span>
+                            </div>
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-2 rounded-full bg-slate-400 transition-all duration-500"
+                                style={{
+                                  width: `${(unassigned / maxCount) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent activity */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <p className="mb-4 font-semibold text-slate-900">
+                        Recent Activity
+                      </p>
+                      {auditLogs.length === 0 ? (
+                        <p className="text-sm text-slate-400">No activity yet.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {auditLogs.slice(0, 6).map((log) => (
+                            <div key={log.id} className="flex items-start gap-3">
+                              <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm text-slate-700">
+                                  {formatAction(log.action)}
+                                </p>
+                                <p className="text-xs text-slate-400">
+                                  {log.actor?.full_name || log.actor?.email || "System"}{" "}
+                                  · {formatDateTime(log.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Top required skills */}
+                    {topSkills.length > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+                        <p className="mb-4 font-semibold text-slate-900">
+                          Top Required Skills
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {topSkills.map(([skill, count]) => (
+                            <span
+                              key={skill}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
+                            >
+                              {skill}
+                              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-xs font-semibold text-blue-700">
+                                {count}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -476,116 +634,6 @@ export function SuperadminPanelClient({
                 </div>
               )}
 
-              {(showCoordinatorForm || editingCoordinatorId) && (
-                <div className="rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">
-                      {editingCoordinatorId
-                        ? "Edit Coordinator"
-                        : "New Coordinator"}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCoordinatorForm(false);
-                        setEditingCoordinatorId(null);
-                      }}
-                      className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <form
-                    action={
-                      editingCoordinatorId
-                        ? handleUpdateCoordinator
-                        : handleCreateCoordinator
-                    }
-                    className="space-y-4"
-                  >
-                    {editingCoordinatorId && (
-                      <input
-                        type="hidden"
-                        name="id"
-                        value={editingCoordinatorId}
-                      />
-                    )}
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Label>Email</Label>
-                        <Input
-                          name="email"
-                          type="email"
-                          required
-                          placeholder="coordinator@university.edu"
-                          defaultValue={editingCoordinator?.email ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Password</Label>
-                        <Input
-                          name="password"
-                          type="password"
-                          required={!editingCoordinatorId}
-                          placeholder={
-                            editingCoordinatorId
-                              ? "Leave blank to keep current"
-                              : "Minimum 6 characters"
-                          }
-                          minLength={6}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Full Name</Label>
-                        <Input
-                          name="full_name"
-                          required
-                          placeholder="Jane Doe"
-                          defaultValue={editingCoordinator?.full_name ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Program</Label>
-                        <select
-                          name="program_id"
-                          required
-                          defaultValue={editingCoordinator?.program_id ?? ""}
-                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="">Select a program...</option>
-                          {PROGRAM_OPTIONS.map((program) => (
-                            <option key={program} value={program}>
-                              {program}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Contact Number</Label>
-                        <Input
-                          name="contact_number"
-                          placeholder="+63 9xx xxx xxxx"
-                          defaultValue={
-                            editingCoordinator?.contact_number ?? ""
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {editingCoordinatorId
-                        ? "Update Coordinator"
-                        : "Create Coordinator"}
-                    </Button>
-                  </form>
-                </div>
-              )}
-
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
                   <p className="font-semibold text-slate-900">
@@ -662,27 +710,23 @@ export function SuperadminPanelClient({
                               >
                                 Edit
                               </button>
-                              <form
-                                action={handleDeleteCoordinator}
-                                className="inline"
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setConfirmDialog({
+                                    title: "Delete coordinator",
+                                    message: `Are you sure you want to delete "${coordinator.full_name || coordinator.email}"? This action cannot be undone.`,
+                                    onConfirm: () =>
+                                      executeDeleteCoordinator(
+                                        coordinator.id,
+                                        coordinator.email,
+                                      ),
+                                  })
+                                }
+                                className="ml-2 rounded-md px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                               >
-                                <input
-                                  type="hidden"
-                                  name="id"
-                                  value={coordinator.id}
-                                />
-                                <input
-                                  type="hidden"
-                                  name="email"
-                                  value={coordinator.email}
-                                />
-                                <button
-                                  type="submit"
-                                  className="ml-2 rounded-md px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                                >
-                                  Delete
-                                </button>
-                              </form>
+                                Delete
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -758,6 +802,7 @@ export function SuperadminPanelClient({
                         <Input
                           name="email_address"
                           type="email"
+                          required
                           placeholder="hr@company.com"
                           defaultValue={editingCompany?.email_address ?? ""}
                         />
@@ -802,6 +847,7 @@ export function SuperadminPanelClient({
                       <div className="relative space-y-1.5">
                         <Label>Required Skills (comma-separated)</Label>
                         <Input
+                          required
                           name="required_skills"
                           placeholder="React, Node.js, SQL"
                           value={requiredSkillsInput}
@@ -991,16 +1037,20 @@ export function SuperadminPanelClient({
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <form action={handleDelete}>
-                            <input type="hidden" name="id" value={company.id} />
-                            <button
-                              type="submit"
-                              className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </form>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfirmDialog({
+                                title: "Delete company",
+                                message: `Are you sure you want to delete "${company.name}"? This action cannot be undone.`,
+                                onConfirm: () => executeDeleteCompany(company.id),
+                              })
+                            }
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1010,8 +1060,15 @@ export function SuperadminPanelClient({
             </div>
           )}
 
-          {activeTab === "audit" && (
-            <div className="mx-auto max-w-6xl">
+          {activeTab === "audit" && (() => {
+            const AUDIT_PAGE_SIZE = 10;
+            const totalAuditPages = Math.ceil(auditLogs.length / AUDIT_PAGE_SIZE);
+            const pagedAuditLogs = auditLogs.slice(
+              (auditPage - 1) * AUDIT_PAGE_SIZE,
+              auditPage * AUDIT_PAGE_SIZE,
+            );
+            return (
+            <div className="mx-auto max-w-6xl space-y-4">
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">
                   <p className="font-semibold text-slate-900">Audit Log</p>
@@ -1044,7 +1101,7 @@ export function SuperadminPanelClient({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
-                        {auditLogs.map((log) => (
+                        {pagedAuditLogs.map((log) => (
                           <tr key={log.id} className="hover:bg-slate-50">
                             <td className="px-6 py-3 align-top">
                               <p className="text-sm font-medium text-slate-900">
@@ -1075,8 +1132,35 @@ export function SuperadminPanelClient({
                   </div>
                 )}
               </div>
+
+              {totalAuditPages > 1 && (
+                <div className="flex items-center justify-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={auditPage === 1}
+                    onClick={() => setAuditPage((p) => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-slate-600">
+                    Page {auditPage} of {totalAuditPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={auditPage === totalAuditPages}
+                    onClick={() => setAuditPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
 
           {activeTab === "account" && (
             <div className="mx-auto max-w-2xl">
@@ -1085,6 +1169,158 @@ export function SuperadminPanelClient({
           )}
         </main>
       </div>
+
+      {/* ── Coordinator Create / Edit Modal ───────────── */}
+      {(showCoordinatorForm || editingCoordinatorId) && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4"
+          onClick={() => {
+            setShowCoordinatorForm(false);
+            setEditingCoordinatorId(null);
+            setCoordinatorContactError(null);
+          }}
+        >
+          <div
+            className="relative my-8 w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-semibold text-slate-900">
+                {editingCoordinatorId ? "Edit Coordinator" : "New Coordinator"}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCoordinatorForm(false);
+                  setEditingCoordinatorId(null);
+                  setCoordinatorContactError(null);
+                }}
+                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {coordinatorFormMsg && !coordinatorFormMsg.includes("successfully") && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {coordinatorFormMsg}
+              </div>
+            )}
+
+            <form
+              action={
+                editingCoordinatorId
+                  ? handleUpdateCoordinator
+                  : handleCreateCoordinator
+              }
+              className="space-y-4"
+            >
+              {editingCoordinatorId && (
+                <input type="hidden" name="id" value={editingCoordinatorId} />
+              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="coordinator@university.edu"
+                    defaultValue={editingCoordinator?.email ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Password</Label>
+                  <Input
+                    name="password"
+                    type="password"
+                    required={!editingCoordinatorId}
+                    placeholder={
+                      editingCoordinatorId
+                        ? "Leave blank to keep current"
+                        : "Minimum 6 characters"
+                    }
+                    minLength={6}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Full Name</Label>
+                  <Input
+                    name="full_name"
+                    required
+                    placeholder="Jane Doe"
+                    defaultValue={editingCoordinator?.full_name ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Program</Label>
+                  <select
+                    name="program_id"
+                    required
+                    defaultValue={editingCoordinator?.program_id ?? ""}
+                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Select a program...</option>
+                    {PROGRAM_OPTIONS.map((program) => (
+                      <option key={program} value={program}>
+                        {program}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Contact Number</Label>
+                  <Input
+                    name="contact_number"
+                    placeholder="+63 9xx xxx xxxx"
+                    defaultValue={editingCoordinator?.contact_number ?? ""}
+                    aria-invalid={!!coordinatorContactError}
+                    onChange={() => setCoordinatorContactError(null)}
+                  />
+                  {coordinatorContactError ? (
+                    <p className="text-xs text-red-600">{coordinatorContactError}</p>
+                  ) : (
+                    <p className="text-xs text-slate-400">11 digits, e.g. 09171234567</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowCoordinatorForm(false);
+                    setEditingCoordinatorId(null);
+                    setCoordinatorContactError(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {editingCoordinatorId ? "Update Coordinator" : "Create Coordinator"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDialog !== null}
+        title={confirmDialog?.title ?? ""}
+        message={confirmDialog?.message ?? ""}
+        onConfirm={() => {
+          confirmDialog?.onConfirm();
+          setConfirmDialog(null);
+        }}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </div>
   );
 }

@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Briefcase, UserPlus } from "lucide-react";
+import { Briefcase, UserPlus, MailCheck } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
@@ -23,8 +22,8 @@ export default function RegisterPage() {
         setError(result.error);
         setPending(false);
       } else if (result?.redirectTo) {
-        router.push(result.redirectTo);
-        router.refresh();
+        setRegisteredEmail(formData.get("email") as string);
+        setPending(false);
       }
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -104,6 +103,45 @@ export default function RegisterPage() {
             </span>
           </div>
 
+          {registeredEmail ? (
+            <div className="space-y-6 text-center">
+              <div className="flex justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                  <MailCheck className="h-8 w-8 text-emerald-600" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Check your email
+                </h2>
+                <p className="text-sm text-slate-500">
+                  We sent a verification link to{" "}
+                  <span className="font-semibold text-slate-700">
+                    {registeredEmail}
+                  </span>
+                  . Click the link in that email to activate your account.
+                </p>
+              </div>
+              <p className="text-xs text-slate-400">
+                Didn&apos;t receive it? Check your spam folder or{" "}
+                <Link
+                  href="/register"
+                  className="text-blue-600 hover:underline"
+                  onClick={() => setRegisteredEmail(null)}
+                >
+                  try again
+                </Link>
+                .
+              </p>
+              <Link
+                href="/login"
+                className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Go to sign in
+              </Link>
+            </div>
+          ) : (
+            <>
           <div className="space-y-1">
             <h2 className="text-2xl font-bold text-slate-900">
               Create account
@@ -222,6 +260,8 @@ export default function RegisterPage() {
               Sign in
             </Link>
           </p>
+            </>
+          )}
         </div>
       </div>
     </div>

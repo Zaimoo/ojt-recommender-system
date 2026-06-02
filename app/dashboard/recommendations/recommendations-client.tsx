@@ -11,6 +11,8 @@ import {
   AlertCircle,
   BarChart3,
   TrendingUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { RecommendationResult } from "@/types";
 
@@ -19,6 +21,7 @@ interface Props {
 }
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const PAGE_SIZE = 10;
 
 type CachedRecommendations = {
   recommendations: RecommendationResult[];
@@ -65,6 +68,7 @@ function RecommendationsClientInner({ cacheKey }: Props) {
   const [recError, setRecError] = useState<string | null>(null);
   const [lowScore, setLowScore] = useState<number | null>(null);
   const [lowScoreOpen, setLowScoreOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   async function handleGenerateRecommendations() {
     setLoading(true);
@@ -77,6 +81,7 @@ function RecommendationsClientInner({ cacheKey }: Props) {
       const nextSkills = result.studentSkills ?? [];
       setRecommendations(nextRecommendations);
       setStudentSkills(nextSkills);
+      setPage(1);
 
       if (nextRecommendations.length > 0) {
         const topScore = nextRecommendations[0].hybridScore ?? 0;
@@ -125,6 +130,14 @@ function RecommendationsClientInner({ cacheKey }: Props) {
     return { highestMatch, averageMatch, programMatched };
   }, [recommendations]);
 
+  const totalPages = Math.ceil(recommendations.length / PAGE_SIZE);
+  const pagedRecommendations = recommendations.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
+  const rangeStart = (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, recommendations.length);
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       {/* Generate button row */}
@@ -132,7 +145,7 @@ function RecommendationsClientInner({ cacheKey }: Props) {
         <div>
           <p className="text-sm text-slate-500">
             {recommendations.length > 0
-              ? `Showing ${recommendations.length} matched companies`
+              ? `Showing ${rangeStart}–${rangeEnd} of ${recommendations.length} matched companies`
               : "Click the button to generate AI-powered matches"}
           </p>
         </div>
@@ -206,7 +219,7 @@ function RecommendationsClientInner({ cacheKey }: Props) {
             Match Score Overview
           </p>
           <div className="space-y-3">
-            {recommendations.map((rec) => (
+            {pagedRecommendations.map((rec) => (
               <div key={`viz-${rec.company.id}`}>
                 <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500">
                   <span className="font-medium text-slate-700">
@@ -242,7 +255,7 @@ function RecommendationsClientInner({ cacheKey }: Props) {
       {recommendations.length > 0 && (
         <div className="space-y-3">
           <p className="font-semibold text-slate-900">Top Matches</p>
-          {recommendations.map((rec, idx) => (
+          {pagedRecommendations.map((rec, idx) => (
             <Link
               key={rec.company.id}
               href={`/companyDetails/${rec.company.id}`}
@@ -251,7 +264,7 @@ function RecommendationsClientInner({ cacheKey }: Props) {
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                    #{idx + 1}
+                    #{(page - 1) * PAGE_SIZE + idx + 1}
                   </span>
                   <p className="font-semibold text-slate-900 group-hover:text-blue-600">
                     {rec.company.name}
@@ -302,6 +315,32 @@ function RecommendationsClientInner({ cacheKey }: Props) {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-slate-600">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       )}
 

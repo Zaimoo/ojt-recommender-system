@@ -105,7 +105,7 @@ export default async function ApplicationDetailsPage({ params }: Props) {
           <div className="mx-auto max-w-3xl space-y-4">
             <Link
               href="/dashboard/applications"
-              className="text-sm text-blue-600 underline"
+              className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
             >
               Back to application history
             </Link>
@@ -202,7 +202,7 @@ export default async function ApplicationDetailsPage({ params }: Props) {
                       href={application.resume_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm font-medium text-blue-600 underline"
+                      className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
                     >
                       View resume
                     </a>
@@ -210,7 +210,7 @@ export default async function ApplicationDetailsPage({ params }: Props) {
                   {company?.id && (
                     <Link
                       href={`/companyDetails/${company.id}`}
-                      className="text-sm font-medium text-blue-600 underline"
+                      className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
                     >
                       View company details
                     </Link>
