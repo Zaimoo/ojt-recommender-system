@@ -419,7 +419,7 @@ export function SuperadminPanelClient({
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Name
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 w-64">
                             Email
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -444,7 +444,7 @@ export function SuperadminPanelClient({
                                 {student.full_name || "—"}
                               </p>
                             </td>
-                            <td className="px-6 py-3 align-top text-slate-500">
+                            <td className="px-6 py-3 align-top text-slate-500 w-64 break-all">
                               {student.email}
                             </td>
                             <td className="px-6 py-3 align-top">
@@ -636,7 +636,7 @@ export function SuperadminPanelClient({
                                 {coordinator.full_name || "—"}
                               </p>
                             </td>
-                            <td className="px-6 py-3 align-top text-slate-500 w-64">
+                            <td className="px-6 py-3 align-top text-slate-500 w-64 break-all">
                               {coordinator.email}
                             </td>
                             <td className="px-6 py-3 align-top w-24">
