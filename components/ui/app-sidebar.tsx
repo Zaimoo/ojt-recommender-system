@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signOut } from "@/app/actions/auth";
 import {
   ChevronLeft,
@@ -26,14 +26,15 @@ interface Props {
 }
 
 export function AppSidebar({ profile, role, navItems }: Props) {
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
     try {
-      return localStorage.getItem("sidebar-collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
+      if (localStorage.getItem("sidebar-collapsed") === "true") {
+        setCollapsed(true);
+      }
+    } catch {}
+  }, []);
 
   function toggleCollapse() {
     setCollapsed((prev) => {
@@ -56,7 +57,7 @@ export function AppSidebar({ profile, role, navItems }: Props) {
 
   return (
     <aside
-      className="relative flex h-screen flex-col border-r border-slate-200 bg-white shadow-sm transition-all duration-200 ease-in-out shrink-0"
+      className="relative flex h-screen flex-col border-r border-slate-200 bg-white shadow-sm shrink-0 transition-[width] duration-200 ease-in-out overflow-hidden"
       style={{ width: collapsed ? 64 : 256 }}
     >
       {/* ── Top: Logo + Collapse button ─────────────────── */}

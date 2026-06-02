@@ -146,6 +146,10 @@ export function SuperadminPanelClient({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMsg, setFormMsg] = useState<string | null>(null);
+  const [companyFieldErrors, setCompanyFieldErrors] = useState<{
+    contact_number?: string;
+    website_url?: string;
+  }>({});
   const [selectedPrograms, setSelectedPrograms] = useState<ProgramId[]>([]);
   const [requiredSkillsInput, setRequiredSkillsInput] = useState("");
   const requiredSkillsRef = useRef<HTMLInputElement | null>(null);
@@ -209,7 +213,33 @@ export function SuperadminPanelClient({
     setCoordinatorFormMsg("Coordinator deleted successfully!");
   }
 
+  function validateCompanyFields(formData: FormData) {
+    const errors: { contact_number?: string; website_url?: string } = {};
+    const contact = (formData.get("contact_number") as string)?.trim();
+    const website = (formData.get("website_url") as string)?.trim();
+
+    if (contact && contact.replace(/\D/g, "").length !== 11) {
+      errors.contact_number =
+        "Invalid format. Contact number should be 11 digits long.";
+    }
+    if (website) {
+      try {
+        new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`);
+      } catch {
+        errors.website_url =
+          "Please enter a valid URL (e.g. https://example.com).";
+      }
+    }
+    return errors;
+  }
+
   async function handleCreate(formData: FormData) {
+    const errors = validateCompanyFields(formData);
+    if (Object.keys(errors).length > 0) {
+      setCompanyFieldErrors(errors);
+      return;
+    }
+    setCompanyFieldErrors({});
     const res = await createCompany(formData);
     if ("error" in res) {
       setFormMsg(res.error);
@@ -221,6 +251,12 @@ export function SuperadminPanelClient({
   }
 
   async function handleUpdate(formData: FormData) {
+    const errors = validateCompanyFields(formData);
+    if (Object.keys(errors).length > 0) {
+      setCompanyFieldErrors(errors);
+      return;
+    }
+    setCompanyFieldErrors({});
     const res = await updateCompany(formData);
     if ("error" in res) {
       setFormMsg(res.error);
@@ -760,6 +796,7 @@ export function SuperadminPanelClient({
                         setEditingId(null);
                         setSelectedPrograms([]);
                         setRequiredSkillsInput("");
+                        setCompanyFieldErrors({});
                       }}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                     >
@@ -768,7 +805,11 @@ export function SuperadminPanelClient({
                   </div>
 
                   <form
-                    action={editingId ? handleUpdate : handleCreate}
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      await (editingId ? handleUpdate : handleCreate)(fd);
+                    }}
                     className="space-y-4"
                   >
                     {editingId && (
@@ -813,7 +854,16 @@ export function SuperadminPanelClient({
                           name="contact_number"
                           placeholder="+63 9xx xxx xxxx"
                           defaultValue={editingCompany?.contact_number ?? ""}
+                          aria-invalid={!!companyFieldErrors.contact_number}
+                          onChange={() =>
+                            setCompanyFieldErrors((p) => ({ ...p, contact_number: undefined }))
+                          }
                         />
+                        {companyFieldErrors.contact_number ? (
+                          <p className="text-xs text-red-600">{companyFieldErrors.contact_number}</p>
+                        ) : (
+                          <p className="text-xs text-slate-400">11 digits, e.g. 09171234567</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label>Location Address</Label>
@@ -827,9 +877,16 @@ export function SuperadminPanelClient({
                         <Label>Website / Social Link</Label>
                         <Input
                           name="website_url"
-                          placeholder="https://..."
+                          placeholder="https://example.com"
                           defaultValue={editingCompany?.website_url ?? ""}
+                          aria-invalid={!!companyFieldErrors.website_url}
+                          onChange={() =>
+                            setCompanyFieldErrors((p) => ({ ...p, website_url: undefined }))
+                          }
                         />
+                        {companyFieldErrors.website_url && (
+                          <p className="text-xs text-red-600">{companyFieldErrors.website_url}</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label>Company Picture (optional)</Label>
