@@ -31,6 +31,28 @@ export async function updateAccount(
   const newPassword = (formData.get("new_password") as string) ?? "";
   const resume = formData.get("resume");
 
+  if (contactNumber) {
+    const digitsOnly = contactNumber.replace(/\D/g, "");
+    if (digitsOnly.length !== 11) {
+      return {
+        error: "Invalid format. Contact number should be 11 numbers long.",
+      };
+    }
+  }
+
+  if (studentId) {
+    const studentIdPattern = /^\d{4}-\d{4}$/;
+    if (!studentIdPattern.test(studentId)) {
+      return {
+        error: "Student ID number invalid. Format should be YYYY-0000.",
+      };
+    }
+  }
+
+  if (newPassword.trim().length > 0 && newPassword.trim().length < 6) {
+    return { error: "Password must be at least 6 characters long." };
+  }
+
   if (assignedProgram) {
     const programId = assignedProgram.toUpperCase() as ProgramOption;
     if (!PROGRAM_OPTIONS.includes(programId)) {

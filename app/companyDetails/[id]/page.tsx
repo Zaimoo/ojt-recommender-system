@@ -178,6 +178,20 @@ export default async function CompanyDetailsPage({ params }: Props) {
                   )}
                 </div>
               </div>
+
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+                  <User className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Added By
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-800">
+                    {company.created_by_name || "Not provided"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Skills & Programs */}

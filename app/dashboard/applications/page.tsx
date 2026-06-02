@@ -107,14 +107,14 @@ export default async function ApplicationHistoryPage() {
                           </Badge>
                           <Link
                             href={`/dashboard/applications/${application.id}`}
-                            className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100"
                           >
                             Details <ArrowUpRight className="h-3 w-3" />
                           </Link>
                           {company?.id && (
                             <Link
                               href={`/companyDetails/${company.id}`}
-                              className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 hover:underline"
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100"
                             >
                               Company <ArrowUpRight className="h-3 w-3" />
                             </Link>

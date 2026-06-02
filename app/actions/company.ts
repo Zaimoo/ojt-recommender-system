@@ -80,7 +80,15 @@ function parseCompanyPayload(formData: FormData): ParseCompanyPayloadResult {
     .filter((value) => PROGRAM_OPTIONS.includes(value));
   const existingLogoUrl = optionalText(formData.get("existing_logo_url"));
 
+  const requiredSkills = parseSkills(requiredSkillsRaw);
+
   if (!name) return { ok: false, error: "Company name is required." };
+  if (requiredSkills.length === 0) {
+    return { ok: false, error: "At least one required skill is needed." };
+  }
+  if (!optionalText(formData.get("email_address"))) {
+    return { ok: false, error: "Company email is required." };
+  }
   if (selectedPrograms.length === 0) {
     return { ok: false, error: "Please select at least one eligible program." };
   }
@@ -96,7 +104,7 @@ function parseCompanyPayload(formData: FormData): ParseCompanyPayloadResult {
       location_address: optionalText(formData.get("location_address")),
       website_url: optionalText(formData.get("website_url")),
       contact_number: optionalText(formData.get("contact_number")),
-      required_skills: parseSkills(requiredSkillsRaw),
+      required_skills: requiredSkills,
       eligibility_programs: selectedPrograms,
     },
   };

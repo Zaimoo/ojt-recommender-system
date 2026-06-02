@@ -7,7 +7,7 @@ import { signIn } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Briefcase, LogIn } from "lucide-react";
+import { Briefcase, LogIn, ChevronLeft } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -92,7 +92,14 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right: Login form ─── */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-8">
+      <div className="relative flex flex-1 flex-col items-center justify-center bg-slate-50 p-8">
+        <Link
+          href="/"
+          className="absolute left-4 top-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Home
+        </Link>
         <div className="w-full max-w-sm space-y-8">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 lg:hidden">

@@ -32,6 +32,7 @@ export function StudentDashboardClient({
   );
   const skillsInputRef = useRef<HTMLInputElement | null>(null);
   const [skillHighlightIndex, setSkillHighlightIndex] = useState(0);
+  const [skillsInputFocused, setSkillsInputFocused] = useState(false);
 
   async function handleSkillsSubmit(formData: FormData) {
     const res = await updateStudentSkills(formData);
@@ -243,9 +244,11 @@ export function StudentDashboardClient({
                         setSkillHighlightIndex(0);
                       }}
                       onKeyDown={handleSkillsKeyDown}
+                      onFocus={() => setSkillsInputFocused(true)}
+                      onBlur={() => setSkillsInputFocused(false)}
                       ref={skillsInputRef}
                     />
-                    {filteredSkillSuggestions.length > 0 && (
+                    {skillsInputFocused && filteredSkillSuggestions.length > 0 && (
                       <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
                         {filteredSkillSuggestions.map((skill, index) => (
                           <button

@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
-import { Plus, Pencil, Trash2, X, Building2, Users, Globe } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Building2, Users, Globe, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Profile, Company, ProgramId } from "@/types";
 
 interface StudentSummary {
@@ -70,9 +71,15 @@ export function CoordinatorPanelClient({
       ? initialTab
       : "dashboard",
   );
+  const [studentsPage, setStudentsPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMsg, setFormMsg] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [selectedPrograms, setSelectedPrograms] = useState<ProgramId[]>([]);
   const [requiredSkillsInput, setRequiredSkillsInput] = useState("");
   const requiredSkillsRef = useRef<HTMLInputElement | null>(null);
@@ -100,9 +107,10 @@ export function CoordinatorPanelClient({
     setEditingId(null);
   }
 
-  async function handleDelete(formData: FormData) {
-    if (!confirm("Delete this company?")) return;
-    await deleteCompany(formData);
+  async function executeDeleteCompany(companyId: string) {
+    const fd = new FormData();
+    fd.append("id", companyId);
+    await deleteCompany(fd);
   }
 
   function toggleProgram(program: ProgramId) {
@@ -294,7 +302,7 @@ export function CoordinatorPanelClient({
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Name
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 w-64">
                             Email
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -319,7 +327,7 @@ export function CoordinatorPanelClient({
                                 {student.full_name || "—"}
                               </p>
                             </td>
-                            <td className="px-6 py-3 align-top text-slate-500">
+                            <td className="px-6 py-3 align-top text-slate-500 w-64 break-all">
                               {student.email}
                             </td>
                             <td className="px-6 py-3 align-top">
@@ -344,8 +352,15 @@ export function CoordinatorPanelClient({
           )}
 
           {/* ── Students Tab ──────────────────────────────── */}
-          {activeTab === "students" && (
-            <div className="mx-auto max-w-5xl">
+          {activeTab === "students" && (() => {
+            const PAGE_SIZE = 10;
+            const totalStudentPages = Math.ceil(allStudents.length / PAGE_SIZE);
+            const pagedStudents = allStudents.slice(
+              (studentsPage - 1) * PAGE_SIZE,
+              studentsPage * PAGE_SIZE,
+            );
+            return (
+            <div className="mx-auto max-w-5xl space-y-4">
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
                   <div>
@@ -371,7 +386,7 @@ export function CoordinatorPanelClient({
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Name
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 w-64">
                             Email
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -392,7 +407,7 @@ export function CoordinatorPanelClient({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
-                        {allStudents.map((student) => (
+                        {pagedStudents.map((student) => (
                           <tr key={student.id} className="hover:bg-slate-50">
                             <td className="px-6 py-3 align-top font-mono text-slate-500">
                               {student.student_id ?? student.id}
@@ -402,7 +417,7 @@ export function CoordinatorPanelClient({
                                 {student.full_name || "—"}
                               </p>
                             </td>
-                            <td className="px-6 py-3 align-top text-slate-500">
+                            <td className="px-6 py-3 align-top text-slate-500 w-64 break-all">
                               {student.email}
                             </td>
                             <td className="px-6 py-3 align-top">
@@ -442,8 +457,35 @@ export function CoordinatorPanelClient({
                   </div>
                 )}
               </div>
+
+              {totalStudentPages > 1 && (
+                <div className="flex items-center justify-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={studentsPage === 1}
+                    onClick={() => setStudentsPage((p) => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-slate-600">
+                    Page {studentsPage} of {totalStudentPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={studentsPage === totalStudentPages}
+                    onClick={() => setStudentsPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
 
           {/* ── Companies Tab ─────────────────────────────── */}
           {activeTab === "companies" && (
@@ -454,194 +496,8 @@ export function CoordinatorPanelClient({
                 </div>
               )}
 
-              {/* Add / Edit Form */}
-              {(showForm || editingId) && (
-                <div className="rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">
-                      {editingId ? "Edit Company" : "New Company"}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditingId(null);
-                        setSelectedPrograms([]);
-                        setRequiredSkillsInput("");
-                      }}
-                      className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <form
-                    action={editingId ? handleUpdate : handleCreate}
-                    className="space-y-4"
-                  >
-                    {editingId && (
-                      <input type="hidden" name="id" value={editingId} />
-                    )}
-                    <input
-                      type="hidden"
-                      name="existing_logo_url"
-                      value={editingCompany?.logo_url ?? ""}
-                    />
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Label>Company Name</Label>
-                        <Input
-                          name="name"
-                          required
-                          defaultValue={editingCompany?.name ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>HR Name</Label>
-                        <Input
-                          name="hr_name"
-                          placeholder="Jane Doe"
-                          defaultValue={editingCompany?.hr_name ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Company Email</Label>
-                        <Input
-                          name="email_address"
-                          type="email"
-                          placeholder="hr@company.com"
-                          defaultValue={editingCompany?.email_address ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Contact Number</Label>
-                        <Input
-                          name="contact_number"
-                          placeholder="+63 9xx xxx xxxx"
-                          defaultValue={editingCompany?.contact_number ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Location Address</Label>
-                        <Input
-                          name="location_address"
-                          placeholder="City, Province"
-                          defaultValue={editingCompany?.location_address ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Website / Social Link</Label>
-                        <Input
-                          name="website_url"
-                          placeholder="https://..."
-                          defaultValue={editingCompany?.website_url ?? ""}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Company Picture (optional)</Label>
-                        <Input
-                          type="file"
-                          name="company_image"
-                          accept="image/*"
-                        />
-                        {editingCompany?.logo_url && (
-                          <p className="text-xs text-slate-400">
-                            Current image exists. Upload to replace.
-                          </p>
-                        )}
-                      </div>
-                      <div className="relative space-y-1.5">
-                        <Label>Required Skills (comma-separated)</Label>
-                        <Input
-                          name="required_skills"
-                          placeholder="React, Node.js, SQL"
-                          value={requiredSkillsInput}
-                          onChange={(e) => {
-                            setRequiredSkillsInput(e.target.value);
-                            setRequiredSkillHighlightIndex(0);
-                          }}
-                          onKeyDown={handleRequiredSkillsKeyDown}
-                          ref={requiredSkillsRef}
-                        />
-                        {filteredSkillSuggestions.length > 0 && (
-                          <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
-                            {filteredSkillSuggestions.map((skill, index) => (
-                              <button
-                                key={skill}
-                                type="button"
-                                className={`block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 ${index === clampedHighlightIndex ? "bg-slate-100" : ""}`}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onMouseEnter={() =>
-                                  setRequiredSkillHighlightIndex(index)
-                                }
-                                onClick={() => applySkillSuggestion(skill)}
-                              >
-                                {skill}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label>Company Overview</Label>
-                      <textarea
-                        name="company_overview"
-                        rows={3}
-                        defaultValue={editingCompany?.company_overview ?? ""}
-                        className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label>Eligible Programs</Label>
-                      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        {PROGRAM_OPTIONS.map((program) => {
-                          const isSelected = selectedPrograms.includes(program);
-                          return (
-                            <button
-                              key={program}
-                              type="button"
-                              onClick={() => toggleProgram(program)}
-                              className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
-                                isSelected
-                                  ? "border-blue-600 bg-blue-600 text-white"
-                                  : "border-slate-300 bg-white text-slate-700 hover:border-blue-400"
-                              }`}
-                            >
-                              {program}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Click to select/deselect programs.
-                      </p>
-                      {selectedPrograms.map((program) => (
-                        <input
-                          key={program}
-                          type="hidden"
-                          name="eligibility_programs"
-                          value={program}
-                        />
-                      ))}
-                    </div>
-
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {editingId ? "Update Company" : "Create Company"}
-                    </Button>
-                  </form>
-                </div>
-              )}
-
               {/* Company list */}
-              {companies.length === 0 && !showForm && !editingId && (
+              {companies.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
                   <Building2 className="mb-3 h-10 w-10 text-slate-300" />
                   <p className="font-medium text-slate-500">No companies yet</p>
@@ -743,16 +599,20 @@ export function CoordinatorPanelClient({
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <form action={handleDelete}>
-                            <input type="hidden" name="id" value={company.id} />
-                            <button
-                              type="submit"
-                              className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </form>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfirmDialog({
+                                title: "Delete company",
+                                message: `Are you sure you want to delete "${company.name}"? This action cannot be undone.`,
+                                onConfirm: () => executeDeleteCompany(company.id),
+                              })
+                            }
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -763,6 +623,239 @@ export function CoordinatorPanelClient({
           )}
         </main>
       </div>
+
+      <ConfirmDialog
+        open={confirmDialog !== null}
+        title={confirmDialog?.title ?? ""}
+        message={confirmDialog?.message ?? ""}
+        onConfirm={() => {
+          confirmDialog?.onConfirm();
+          setConfirmDialog(null);
+        }}
+        onCancel={() => setConfirmDialog(null)}
+      />
+
+      {/* ── Company Create / Edit Modal ────────────────── */}
+      {(showForm || editingId) && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4"
+          onClick={() => {
+            setShowForm(false);
+            setEditingId(null);
+            setSelectedPrograms([]);
+            setRequiredSkillsInput("");
+          }}
+        >
+          <div
+            className="relative my-8 w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-semibold text-slate-900">
+                {editingId ? "Edit Company" : "New Company"}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingId(null);
+                  setSelectedPrograms([]);
+                  setRequiredSkillsInput("");
+                }}
+                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {formMsg && (
+              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {formMsg}
+              </div>
+            )}
+
+            <form
+              action={editingId ? handleUpdate : handleCreate}
+              className="space-y-4"
+            >
+              {editingId && (
+                <input type="hidden" name="id" value={editingId} />
+              )}
+              <input
+                type="hidden"
+                name="existing_logo_url"
+                value={editingCompany?.logo_url ?? ""}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Company Name</Label>
+                  <Input
+                    name="name"
+                    required
+                    defaultValue={editingCompany?.name ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>HR Name</Label>
+                  <Input
+                    name="hr_name"
+                    placeholder="Jane Doe"
+                    defaultValue={editingCompany?.hr_name ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Company Email</Label>
+                  <Input
+                    name="email_address"
+                    type="email"
+                    required
+                    placeholder="hr@company.com"
+                    defaultValue={editingCompany?.email_address ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Contact Number</Label>
+                  <Input
+                    name="contact_number"
+                    placeholder="+63 9xx xxx xxxx"
+                    defaultValue={editingCompany?.contact_number ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Location Address</Label>
+                  <Input
+                    name="location_address"
+                    placeholder="City, Province"
+                    defaultValue={editingCompany?.location_address ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Website / Social Link</Label>
+                  <Input
+                    name="website_url"
+                    placeholder="https://..."
+                    defaultValue={editingCompany?.website_url ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Company Picture (optional)</Label>
+                  <Input
+                    type="file"
+                    name="company_image"
+                    accept="image/*"
+                  />
+                  {editingCompany?.logo_url && (
+                    <p className="text-xs text-slate-400">
+                      Current image exists. Upload to replace.
+                    </p>
+                  )}
+                </div>
+                <div className="relative space-y-1.5">
+                  <Label>Required Skills (comma-separated)</Label>
+                  <Input
+                    required
+                    name="required_skills"
+                    placeholder="React, Node.js, SQL"
+                    value={requiredSkillsInput}
+                    onChange={(e) => {
+                      setRequiredSkillsInput(e.target.value);
+                      setRequiredSkillHighlightIndex(0);
+                    }}
+                    onKeyDown={handleRequiredSkillsKeyDown}
+                    ref={requiredSkillsRef}
+                  />
+                  {filteredSkillSuggestions.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {filteredSkillSuggestions.map((skill, index) => (
+                        <button
+                          key={skill}
+                          type="button"
+                          className={`block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 ${index === clampedHighlightIndex ? "bg-slate-100" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onMouseEnter={() =>
+                            setRequiredSkillHighlightIndex(index)
+                          }
+                          onClick={() => applySkillSuggestion(skill)}
+                        >
+                          {skill}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Company Overview</Label>
+                <textarea
+                  name="company_overview"
+                  rows={3}
+                  defaultValue={editingCompany?.company_overview ?? ""}
+                  className="flex w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Eligible Programs</Label>
+                <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  {PROGRAM_OPTIONS.map((program) => {
+                    const isSelected = selectedPrograms.includes(program);
+                    return (
+                      <button
+                        key={program}
+                        type="button"
+                        onClick={() => toggleProgram(program)}
+                        className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+                          isSelected
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-400"
+                        }`}
+                      >
+                        {program}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-400">
+                  Click to select/deselect programs.
+                </p>
+                {selectedPrograms.map((program) => (
+                  <input
+                    key={program}
+                    type="hidden"
+                    name="eligibility_programs"
+                    value={program}
+                  />
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                    setSelectedPrograms([]);
+                    setRequiredSkillsInput("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {editingId ? "Update Company" : "Create Company"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
