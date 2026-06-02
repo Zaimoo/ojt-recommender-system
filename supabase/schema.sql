@@ -85,7 +85,7 @@ create table if not exists public.companies (
   location_address      text,
   website_url           text,
   contact_number        text,
-  created_by            uuid references public.profiles(id),
+  created_by            uuid references public.profiles(id) on delete set null,
   created_by_name       text,
   required_skills       text[] not null default '{}',
   eligibility_programs  text[] not null default '{}' check (eligibility_programs <@ array['BSIS','BSIT','BSCS','BSCA']::text[]),
@@ -102,17 +102,21 @@ alter table public.companies add column if not exists contact_number text;
 alter table public.companies add column if not exists hr_name text;
 alter table public.companies add column if not exists created_by uuid;
 alter table public.companies add column if not exists created_by_name text;
+-- Ensure created_by detaches (SET NULL) when a profile is deleted, so deleting
+-- a coordinator does not fail on the companies they created. Drop-and-recreate
+-- handles existing deployments where the FK was created without on-delete action.
 do $$
 begin
-  if not exists (
+  if exists (
     select 1
     from pg_constraint
     where conname = 'companies_created_by_fkey'
   ) then
-    alter table public.companies
-      add constraint companies_created_by_fkey
-      foreign key (created_by) references public.profiles(id);
+    alter table public.companies drop constraint companies_created_by_fkey;
   end if;
+  alter table public.companies
+    add constraint companies_created_by_fkey
+    foreign key (created_by) references public.profiles(id) on delete set null;
 end $$;
 
 update public.companies as c
@@ -225,13 +229,30 @@ create policy "Coordinators can read company applications"
 -- 5. Audit logs
 create table if not exists public.audit_logs (
   id          uuid primary key default gen_random_uuid(),
-  actor_id    uuid references public.profiles(id),
+  actor_id    uuid references public.profiles(id) on delete set null,
   action      text not null,
   entity_type text not null,
   entity_id   uuid,
   details     jsonb,
   created_at  timestamptz not null default now()
 );
+
+-- Ensure actor_id detaches (SET NULL) when a profile is deleted, preserving the
+-- audit history while allowing user deletion. Drop-and-recreate handles existing
+-- deployments where the FK was created without an on-delete action.
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'audit_logs_actor_id_fkey'
+  ) then
+    alter table public.audit_logs drop constraint audit_logs_actor_id_fkey;
+  end if;
+  alter table public.audit_logs
+    add constraint audit_logs_actor_id_fkey
+    foreign key (actor_id) references public.profiles(id) on delete set null;
+end $$;
 
 alter table public.audit_logs enable row level security;
 

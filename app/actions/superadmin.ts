@@ -211,6 +211,9 @@ export async function deleteCoordinatorAccount(
     email ||
     null;
 
+  // Preserve the creator's display name on their companies before deletion.
+  // The created_by FK itself is set to null automatically by the database
+  // (ON DELETE SET NULL); this only keeps the "Added by" label readable.
   if (createdByName) {
     const { error: nameError } = await supabase
       .from("companies")
@@ -227,19 +230,8 @@ export async function deleteCoordinatorAccount(
     }
   }
 
-  const { error: companyError } = await supabase
-    .from("companies")
-    .update({ created_by: null })
-    .eq("created_by", coordinatorId);
-
-  if (companyError) {
-    console.error(
-      "deleteCoordinatorAccount: company cleanup failed",
-      companyError.message,
-    );
-    return { error: companyError.message };
-  }
-
+  // Deleting the auth user cascades to the profile row; companies.created_by
+  // and audit_logs.actor_id detach via ON DELETE SET NULL (see schema.sql).
   const admin = createSuperadminClient();
   const { error } = await admin.auth.admin.deleteUser(coordinatorId);
 
