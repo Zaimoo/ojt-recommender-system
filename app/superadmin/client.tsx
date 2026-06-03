@@ -782,9 +782,22 @@ export function SuperadminPanelClient({
                 </div>
               )}
 
-              {/* Add / Edit Form */}
+              {/* ── Company Create / Edit Modal ────────────────── */}
               {(showForm || editingId) && (
-                <div className="rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
+                <div
+                  className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                    setSelectedPrograms([]);
+                    setRequiredSkillsInput("");
+                    setCompanyFieldErrors({});
+                  }}
+                >
+                  <div
+                    className="relative my-8 w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                   <div className="mb-4 flex items-center justify-between">
                     <p className="font-semibold text-slate-900">
                       {editingId ? "Edit Company" : "New Company"}
@@ -803,6 +816,12 @@ export function SuperadminPanelClient({
                       <X className="h-4 w-4" />
                     </button>
                   </div>
+
+                  {formMsg && (
+                    <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {formMsg}
+                    </div>
+                  )}
 
                   <form
                     onSubmit={async (e) => {
@@ -988,11 +1007,12 @@ export function SuperadminPanelClient({
                       {editingId ? "Update Company" : "Create Company"}
                     </Button>
                   </form>
+                  </div>
                 </div>
               )}
 
               {/* Company list */}
-              {companies.length === 0 && !showForm && !editingId && (
+              {companies.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
                   <Building2 className="mb-3 h-10 w-10 text-slate-300" />
                   <p className="font-medium text-slate-500">No companies yet</p>
