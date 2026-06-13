@@ -73,11 +73,21 @@ export async function signIn(formData: FormData) {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, is_active")
         .eq("id", user.id)
         .single();
 
       const role = profile?.role;
+
+      // Deactivated coordinators cannot sign in.
+      if (role === "coordinator" && profile?.is_active === false) {
+        await supabase.auth.signOut();
+        return {
+          error:
+            "Your coordinator account has been deactivated. Please contact the administrator.",
+        };
+      }
+
       return {
         redirectTo:
           role === "superadmin"

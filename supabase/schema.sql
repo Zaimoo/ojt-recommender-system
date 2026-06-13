@@ -14,6 +14,7 @@ create table if not exists public.profiles (
   student_id  text,
   resume_path text,
   resume_url  text,
+  is_active   boolean not null default true,
   created_at  timestamptz not null default now()
 );
 
@@ -21,6 +22,7 @@ alter table public.profiles add column if not exists contact_number text;
 alter table public.profiles add column if not exists student_id text;
 alter table public.profiles add column if not exists resume_path text;
 alter table public.profiles add column if not exists resume_url text;
+alter table public.profiles add column if not exists is_active boolean not null default true;
 
 alter table public.profiles enable row level security;
 
@@ -64,10 +66,28 @@ returns boolean as $$
   );
 $$ language sql security definer stable;
 
--- Coordinators can view all profiles
+-- Returns the program_id assigned to the currently-authenticated coordinator
+-- (null for non-coordinators). Used to scope coordinator visibility to their
+-- own program only.
+create or replace function public.coordinator_program()
+returns text as $$
+  select program_id
+  from public.profiles
+  where id = auth.uid()
+    and role = 'coordinator';
+$$ language sql security definer stable;
+
+-- Coordinators can view student profiles in their assigned program only;
+-- superadmins can view everyone.
 create policy "Coordinators can view all profiles"
   on public.profiles for select
-  using ( public.is_coordinator() or public.is_superadmin() );
+  using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and program_id is not distinct from public.coordinator_program()
+    )
+  );
 
 create policy "Superadmins can update profiles"
   on public.profiles for update
@@ -176,11 +196,21 @@ create policy "Students can update own student profile"
   on public.student_profiles for update
   using (auth.uid() = user_id);
 
--- Coordinators can view all student profiles
+-- Coordinators can view student profiles in their assigned program only.
 drop policy if exists "Coordinators can view all student profiles" on public.student_profiles;
 create policy "Coordinators can view all student profiles"
   on public.student_profiles for select
-  using ( public.is_coordinator() or public.is_superadmin() );
+  using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = student_profiles.user_id
+          and p.program_id is not distinct from public.coordinator_program()
+      )
+    )
+  );
 
 -- 4. Company applications table
 create table if not exists public.company_applications (
@@ -224,7 +254,78 @@ create policy "Students can update own company applications"
 drop policy if exists "Coordinators can read company applications" on public.company_applications;
 create policy "Coordinators can read company applications"
   on public.company_applications for select
-  using (public.is_coordinator() or public.is_superadmin());
+  using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = company_applications.user_id
+          and p.program_id is not distinct from public.coordinator_program()
+      )
+    )
+  );
+
+-- 4b. OJT placements – one final placement per student, with MOA/LOA and
+-- completion certificate documents. A student selects exactly one accepted
+-- application as their final OJT placement.
+create table if not exists public.ojt_placements (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null unique references public.profiles(id) on delete cascade,
+  application_id   uuid not null references public.company_applications(id) on delete cascade,
+  company_id       uuid not null references public.companies(id) on delete cascade,
+  moa_path         text,
+  moa_url          text,
+  certificate_path text,
+  certificate_url  text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+alter table public.ojt_placements enable row level security;
+
+drop policy if exists "Students can read own placement" on public.ojt_placements;
+create policy "Students can read own placement"
+  on public.ojt_placements for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Students can insert own placement" on public.ojt_placements;
+create policy "Students can insert own placement"
+  on public.ojt_placements for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Students can update own placement" on public.ojt_placements;
+create policy "Students can update own placement"
+  on public.ojt_placements for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Students can delete own placement" on public.ojt_placements;
+create policy "Students can delete own placement"
+  on public.ojt_placements for delete
+  using (auth.uid() = user_id);
+
+-- Coordinators can view placements for students in their assigned program;
+-- superadmins can view all.
+drop policy if exists "Coordinators can read placements" on public.ojt_placements;
+create policy "Coordinators can read placements"
+  on public.ojt_placements for select
+  using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = ojt_placements.user_id
+          and p.program_id is not distinct from public.coordinator_program()
+      )
+    )
+  );
+
+drop trigger if exists ojt_placements_updated_at on public.ojt_placements;
+create trigger ojt_placements_updated_at
+  before update on public.ojt_placements
+  for each row execute function public.update_updated_at();
 
 -- 5. Audit logs
 create table if not exists public.audit_logs (
@@ -319,6 +420,38 @@ drop policy if exists "Coordinators can view candidate resumes" on storage.objec
 create policy "Coordinators can view candidate resumes"
   on storage.objects for select
   using (bucket_id = 'candidate-resumes' and (public.is_coordinator() or public.is_superadmin()));
+
+-- Placement documents (MOA/LOA) and completion certificates. Students manage
+-- their own files (folder = their uid); coordinators/superadmins can view.
+insert into storage.buckets (id, name, public)
+values ('placement-documents', 'placement-documents', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('completion-certificates', 'completion-certificates', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Students manage own placement documents" on storage.objects;
+create policy "Students manage own placement documents"
+  on storage.objects for all
+  using (
+    bucket_id in ('placement-documents', 'completion-certificates')
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id in ('placement-documents', 'completion-certificates')
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Staff can view placement documents" on storage.objects;
+create policy "Staff can view placement documents"
+  on storage.objects for select
+  using (
+    bucket_id in ('placement-documents', 'completion-certificates')
+    and (public.is_coordinator() or public.is_superadmin())
+  );
 
 
 drop function if exists public.is_verified_coordinator();

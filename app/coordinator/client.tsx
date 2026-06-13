@@ -26,6 +26,7 @@ interface StudentSummary {
   student_id: string | null;
   created_at: string;
   application_status?: string | null;
+  placement_company?: string | null;
 }
 
 interface StudentWithTimestamp extends StudentSummary {
@@ -434,6 +435,9 @@ export function CoordinatorPanelClient({
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Status
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Placement
+                          </th>
                           <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
                             Joined
                           </th>
@@ -474,6 +478,17 @@ export function CoordinatorPanelClient({
                                   student.application_status ?? null,
                                 )}
                               </Badge>
+                            </td>
+                            <td className="px-6 py-3 align-top">
+                              {student.placement_company ? (
+                                <span className="text-sm font-medium text-slate-900">
+                                  {student.placement_company}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-400">
+                                  Not placed
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
                               {formatDate(student.created_at)}

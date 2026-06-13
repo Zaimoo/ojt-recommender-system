@@ -23,6 +23,7 @@ interface CoordinatorSummary {
   email: string;
   program_id: ProgramId | null;
   contact_number: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -58,7 +59,9 @@ export default async function SuperadminPage({ searchParams }: Props) {
         .order("created_at", { ascending: false }),
       supabase
         .from("profiles")
-        .select("id, full_name, email, program_id, contact_number, created_at")
+        .select(
+          "id, full_name, email, program_id, contact_number, is_active, created_at",
+        )
         .eq("role", "coordinator")
         .order("created_at", { ascending: false }),
       supabase

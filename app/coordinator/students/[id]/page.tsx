@@ -69,9 +69,23 @@ export default async function CoordinatorStudentPage({ params }: Props) {
 
   if (studentRes.error || !studentRes.data) notFound();
 
+  const placementRes = await supabase
+    .from("ojt_placements")
+    .select(
+      "application_id, moa_url, certificate_url, company:companies(id, name)",
+    )
+    .eq("user_id", id)
+    .maybeSingle();
+
   const student = studentRes.data;
   const studentProfile = studentProfileRes.data;
   const applications = applicationsRes.data ?? [];
+  const placement = placementRes.data;
+  const placementCompany = placement
+    ? Array.isArray(placement.company)
+      ? placement.company[0]
+      : placement.company
+    : null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -156,9 +170,58 @@ export default async function CoordinatorStudentPage({ params }: Props) {
               </div>
             </div>
 
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Final OJT Placement
+              </p>
+              {placementCompany ? (
+                <div className="mt-2 space-y-2">
+                  <p className="text-sm font-medium text-slate-900">
+                    {placementCompany.name}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {placement?.moa_url ? (
+                      <a
+                        href={placement.moa_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        View MOA / LOA
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        MOA / LOA not uploaded
+                      </span>
+                    )}
+                    {placement?.certificate_url ? (
+                      <a
+                        href={placement.certificate_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        View Certificate of Completion
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        Certificate not uploaded
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-400">
+                  No final placement selected yet.
+                </p>
+              )}
+            </div>
+
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-6 py-4">
-                <p className="font-semibold text-slate-900">Applications</p>
+                <p className="font-semibold text-slate-900">
+                  Application History
+                </p>
                 <p className="text-xs text-slate-500">
                   {applications.length} total
                 </p>
@@ -195,7 +258,12 @@ export default async function CoordinatorStudentPage({ params }: Props) {
                             className="hover:bg-slate-50"
                           >
                             <td className="px-6 py-3 align-top">
-                              {company?.name || "Unknown company"}
+                              <span>{company?.name || "Unknown company"}</span>
+                              {placement?.application_id === application.id && (
+                                <Badge variant="success" className="ml-2">
+                                  Final placement
+                                </Badge>
+                              )}
                             </td>
                             <td className="px-6 py-3 align-top">
                               <Badge

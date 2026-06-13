@@ -10,6 +10,8 @@ export type ApplyActionResult =
 
 export type UpdateStatusResult = { success: true } | { error: string };
 
+export type PlacementActionResult = { success: true } | { error: string };
+
 const APPLICATION_STATUSES = [
   "submitted",
   "under_review",
@@ -409,4 +411,184 @@ export async function updateApplicationStatus(
   revalidatePath("/dashboard/applications");
   revalidatePath(`/dashboard/applications/${applicationId}`);
   return { success: true };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Final OJT placement + MOA/LOA + completion certificate
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Marks one accepted application as the student's final OJT placement.
+ * Enforced one-per-student via the unique user_id on ojt_placements.
+ * Re-selecting a different company replaces the placement and clears any
+ * previously-uploaded MOA/LOA and certificate (they no longer apply).
+ */
+export async function setFinalPlacement(
+  formData: FormData,
+): Promise<PlacementActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Please log in first." };
+
+  const applicationId = (formData.get("application_id") as string)?.trim();
+  if (!applicationId) return { error: "Missing application id." };
+
+  const { data: application, error } = await supabase
+    .from("company_applications")
+    .select("id, status, company_id")
+    .eq("id", applicationId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !application) return { error: "Application not found." };
+  if (application.status !== "accepted") {
+    return {
+      error: "Only an accepted application can be set as final placement.",
+    };
+  }
+
+  const { data: existing } = await supabase
+    .from("ojt_placements")
+    .select("id, application_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existing && existing.application_id === applicationId) {
+    return { success: true };
+  }
+
+  const placementRow = {
+    user_id: user.id,
+    application_id: application.id,
+    company_id: application.company_id,
+    // Clear documents whenever the placed company changes.
+    moa_path: null,
+    moa_url: null,
+    certificate_path: null,
+    certificate_url: null,
+  };
+
+  const { error: upsertError } = await supabase
+    .from("ojt_placements")
+    .upsert(placementRow, { onConflict: "user_id" });
+
+  if (upsertError) return { error: upsertError.message };
+
+  await logAudit({
+    actorId: user.id,
+    action: "placement.select",
+    entityType: "ojt_placement",
+    entityId: application.id,
+    details: { company_id: application.company_id },
+  });
+
+  revalidatePath("/dashboard/applications");
+  revalidatePath(`/dashboard/applications/${applicationId}`);
+  return { success: true };
+}
+
+async function uploadPlacementFile(
+  formData: FormData,
+  {
+    fieldName,
+    bucket,
+    prefix,
+    pathColumn,
+    urlColumn,
+    auditAction,
+  }: {
+    fieldName: string;
+    bucket: string;
+    prefix: string;
+    pathColumn: "moa_path" | "certificate_path";
+    urlColumn: "moa_url" | "certificate_url";
+    auditAction: string;
+  },
+): Promise<PlacementActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Please log in first." };
+
+  const file = formData.get(fieldName);
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Please choose a file to upload." };
+  }
+
+  const { data: placement } = await supabase
+    .from("ojt_placements")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!placement) {
+    return { error: "Select your final OJT placement before uploading." };
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const storagePath = `${user.id}/${prefix}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(storagePath, file, {
+      upsert: true,
+      contentType: file.type || "application/octet-stream",
+    });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+
+  const { error: updateError } = await supabase
+    .from("ojt_placements")
+    .update({ [pathColumn]: storagePath, [urlColumn]: publicUrl })
+    .eq("user_id", user.id);
+
+  if (updateError) return { error: updateError.message };
+
+  await logAudit({
+    actorId: user.id,
+    action: auditAction,
+    entityType: "ojt_placement",
+    entityId: placement.id,
+    details: { path: storagePath },
+  });
+
+  revalidatePath("/dashboard/applications");
+  return { success: true };
+}
+
+/** Uploads the signed MOA/LOA for the student's final placement. */
+export async function uploadPlacementDocument(
+  formData: FormData,
+): Promise<PlacementActionResult> {
+  return uploadPlacementFile(formData, {
+    fieldName: "moa",
+    bucket: "placement-documents",
+    prefix: "moa",
+    pathColumn: "moa_path",
+    urlColumn: "moa_url",
+    auditAction: "placement.moa.upload",
+  });
+}
+
+/** Uploads the certificate of completion after the OJT finishes. */
+export async function uploadCompletionCertificate(
+  formData: FormData,
+): Promise<PlacementActionResult> {
+  return uploadPlacementFile(formData, {
+    fieldName: "certificate",
+    bucket: "completion-certificates",
+    prefix: "certificate",
+    pathColumn: "certificate_path",
+    urlColumn: "certificate_url",
+    auditAction: "placement.certificate.upload",
+  });
 }
