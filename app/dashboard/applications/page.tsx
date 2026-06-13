@@ -45,16 +45,22 @@ export default async function ApplicationHistoryPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profileRes, applicationsRes] = await Promise.all([
+  const [profileRes, applicationsRes, placementRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase
       .from("company_applications")
       .select("id, status, created_at, company:companies!inner(id, name)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("ojt_placements")
+      .select("application_id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   const applications = applicationsRes.data;
+  const placementApplicationId = placementRes.data?.application_id ?? null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -102,6 +108,9 @@ export default async function ApplicationHistoryPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
+                          {placementApplicationId === application.id && (
+                            <Badge variant="success">Final placement</Badge>
+                          )}
                           <Badge variant={statusBadgeVariant(application.status)}>
                             {statusLabel(application.status)}
                           </Badge>

@@ -173,6 +173,58 @@ export async function updateCoordinatorAccount(
   return { success: true };
 }
 
+export async function setCoordinatorActive(
+  formData: FormData,
+): Promise<SuperadminUpdateResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "superadmin") {
+    return { error: "Only superadmins can change coordinator status." };
+  }
+
+  const coordinatorId = (formData.get("id") as string)?.trim();
+  const isActive = (formData.get("is_active") as string)?.trim() === "true";
+
+  if (!coordinatorId) return { error: "Missing coordinator id." };
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ is_active: isActive })
+    .eq("id", coordinatorId)
+    .eq("role", "coordinator");
+
+  if (updateError) {
+    console.error(
+      "setCoordinatorActive: profile update failed",
+      updateError.message,
+    );
+    return { error: updateError.message };
+  }
+
+  await logAudit({
+    actorId: user.id,
+    action: isActive ? "coordinator.activate" : "coordinator.deactivate",
+    entityType: "profile",
+    entityId: coordinatorId,
+    details: { is_active: isActive },
+  });
+
+  revalidatePath("/superadmin");
+  return { success: true };
+}
+
 export async function deleteCoordinatorAccount(
   formData: FormData,
 ): Promise<SuperadminUpdateResult> {

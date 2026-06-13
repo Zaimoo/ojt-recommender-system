@@ -19,6 +19,7 @@ import {
   createCoordinatorAccount,
   updateCoordinatorAccount,
   deleteCoordinatorAccount,
+  setCoordinatorActive,
 } from "@/app/actions/superadmin";
 import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import {
@@ -52,6 +53,7 @@ interface CoordinatorSummary {
   email: string;
   program_id: ProgramId | null;
   contact_number: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -211,6 +213,25 @@ export function SuperadminPanelClient({
       return;
     }
     setCoordinatorFormMsg("Coordinator deleted successfully!");
+  }
+
+  async function handleToggleCoordinatorActive(
+    coordinatorId: string,
+    nextActive: boolean,
+  ) {
+    const fd = new FormData();
+    fd.append("id", coordinatorId);
+    fd.append("is_active", String(nextActive));
+    const res = await setCoordinatorActive(fd);
+    if ("error" in res) {
+      setCoordinatorFormMsg(res.error);
+      return;
+    }
+    setCoordinatorFormMsg(
+      nextActive
+        ? "Coordinator activated successfully!"
+        : "Coordinator deactivated successfully!",
+    );
   }
 
   function validateCompanyFields(formData: FormData) {
@@ -702,6 +723,9 @@ export function SuperadminPanelClient({
                             Contact
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                             Joined
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -731,10 +755,48 @@ export function SuperadminPanelClient({
                             <td className="px-6 py-3 align-top text-slate-500">
                               {coordinator.contact_number || "—"}
                             </td>
+                            <td className="px-6 py-3 align-top">
+                              <Badge
+                                variant={
+                                  coordinator.is_active
+                                    ? "success"
+                                    : "secondary"
+                                }
+                              >
+                                {coordinator.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </td>
                             <td className="px-6 py-3 align-top text-xs text-slate-400">
                               {formatDate(coordinator.created_at)}
                             </td>
                             <td className="px-6 py-3 align-top text-right">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setConfirmDialog({
+                                    title: coordinator.is_active
+                                      ? "Deactivate coordinator"
+                                      : "Activate coordinator",
+                                    message: coordinator.is_active
+                                      ? `Deactivate "${coordinator.full_name || coordinator.email}"? They will be signed out and unable to log in until reactivated.`
+                                      : `Activate "${coordinator.full_name || coordinator.email}"? They will be able to log in again.`,
+                                    onConfirm: () =>
+                                      handleToggleCoordinatorActive(
+                                        coordinator.id,
+                                        !coordinator.is_active,
+                                      ),
+                                  })
+                                }
+                                className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                                  coordinator.is_active
+                                    ? "text-amber-600 hover:bg-amber-50"
+                                    : "text-emerald-600 hover:bg-emerald-50"
+                                }`}
+                              >
+                                {coordinator.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -742,7 +804,7 @@ export function SuperadminPanelClient({
                                   setShowCoordinatorForm(false);
                                   setCoordinatorFormMsg(null);
                                 }}
-                                className="rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                                className="ml-2 rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
                               >
                                 Edit
                               </button>

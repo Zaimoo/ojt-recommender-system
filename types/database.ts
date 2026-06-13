@@ -15,6 +15,7 @@ export interface Profile {
   student_id: string | null;
   resume_path: string | null;
   resume_url: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -58,6 +59,19 @@ export interface CompanyApplication {
   cover_letter_path: string | null;
   cover_letter_url: string | null;
   created_at: string;
+}
+
+export interface OjtPlacement {
+  id: string;
+  user_id: string;
+  application_id: string;
+  company_id: string;
+  moa_path: string | null;
+  moa_url: string | null;
+  certificate_path: string | null;
+  certificate_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AuditLog {
@@ -109,6 +123,11 @@ export interface Database {
         Row: CompanyApplication;
         Insert: Omit<CompanyApplication, "id" | "created_at">;
         Update: Partial<Omit<CompanyApplication, "id" | "created_at">>;
+      };
+      ojt_placements: {
+        Row: OjtPlacement;
+        Insert: Omit<OjtPlacement, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<OjtPlacement, "id" | "created_at" | "updated_at">>;
       };
       audit_logs: {
         Row: AuditLog;

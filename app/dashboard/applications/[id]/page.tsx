@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateApplicationStatus } from "@/app/actions/application";
+import {
+  updateApplicationStatus,
+  setFinalPlacement,
+  uploadPlacementDocument,
+  uploadCompletionCertificate,
+} from "@/app/actions/application";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentSidebar } from "../../_components/student-sidebar";
@@ -77,11 +82,36 @@ export default async function ApplicationDetailsPage({ params }: Props) {
 
   if (error || !application) notFound();
 
+  const placementRes = await supabase
+    .from("ojt_placements")
+    .select("application_id, moa_url, certificate_url")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const placement = placementRes.data;
+  const isFinalPlacement = placement?.application_id === application.id;
+  const hasOtherPlacement = !!placement && !isFinalPlacement;
+
   const statusOptions = nextStatusOptions(application.status);
 
   const updateStatusAction = async (formData: FormData) => {
     "use server";
     await updateApplicationStatus(formData);
+  };
+
+  const selectPlacementAction = async (formData: FormData) => {
+    "use server";
+    await setFinalPlacement(formData);
+  };
+
+  const uploadMoaAction = async (formData: FormData) => {
+    "use server";
+    await uploadPlacementDocument(formData);
+  };
+
+  const uploadCertificateAction = async (formData: FormData) => {
+    "use server";
+    await uploadCompletionCertificate(formData);
   };
 
   const company = Array.isArray(application.company)
@@ -164,6 +194,128 @@ export default async function ApplicationDetailsPage({ params }: Props) {
                     </form>
                   )}
                 </div>
+
+                {application.status === "accepted" && (
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs uppercase text-slate-500">
+                        Final OJT Placement
+                      </p>
+                      {isFinalPlacement && (
+                        <Badge variant="success">Selected placement</Badge>
+                      )}
+                    </div>
+
+                    {isFinalPlacement ? (
+                      <div className="mt-3 space-y-4">
+                        <p className="text-sm text-slate-600">
+                          This company is your final OJT placement. Upload your
+                          signed MOA / LOA, and your certificate of completion
+                          once the OJT is finished.
+                        </p>
+
+                        <form
+                          action={uploadMoaAction}
+                          className="space-y-2"
+                        >
+                          <label className="text-xs font-medium text-slate-700">
+                            MOA / LOA (PDF or image)
+                          </label>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <input
+                              type="file"
+                              name="moa"
+                              accept=".pdf,image/*"
+                              required
+                              className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700"
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant="outline"
+                            >
+                              Upload MOA / LOA
+                            </Button>
+                            {placement?.moa_url && (
+                              <a
+                                href={placement.moa_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-blue-600 underline"
+                              >
+                                View current
+                              </a>
+                            )}
+                          </div>
+                        </form>
+
+                        <form
+                          action={uploadCertificateAction}
+                          className="space-y-2"
+                        >
+                          <label className="text-xs font-medium text-slate-700">
+                            Certificate of Completion (PDF or image)
+                          </label>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <input
+                              type="file"
+                              name="certificate"
+                              accept=".pdf,image/*"
+                              required
+                              className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700"
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant="outline"
+                            >
+                              Upload Certificate
+                            </Button>
+                            {placement?.certificate_url && (
+                              <a
+                                href={placement.certificate_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-blue-600 underline"
+                              >
+                                View current
+                              </a>
+                            )}
+                          </div>
+                        </form>
+                      </div>
+                    ) : hasOtherPlacement ? (
+                      <p className="mt-2 text-sm text-slate-600">
+                        You have already chosen a different company as your final
+                        OJT placement. Selecting this one will replace it and
+                        clear any uploaded documents.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Choose this company as your final OJT placement.
+                      </p>
+                    )}
+
+                    {!isFinalPlacement && (
+                      <form action={selectPlacementAction} className="mt-3">
+                        <input
+                          type="hidden"
+                          name="application_id"
+                          value={application.id}
+                        />
+                        <Button
+                          type="submit"
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          {hasOtherPlacement
+                            ? "Set as final placement instead"
+                            : "Select as final placement"}
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-lg border border-slate-200 p-4">

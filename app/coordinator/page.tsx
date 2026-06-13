@@ -16,37 +16,61 @@ export default async function CoordinatorPage({ searchParams }: Props) {
 
   if (!user) redirect("/login");
 
-  const [profileRes, companiesRes, allStudentsRes, latestStudentsRes] =
-    await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
-      supabase
-        .from("companies")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("profiles")
-        .select(
-          "id, full_name, email, program_id, contact_number, student_id, created_at",
-        )
-        .eq("role", "student"),
-      supabase
-        .from("profiles")
-        .select(
-          "id, full_name, email, program_id, contact_number, student_id, created_at",
-        )
-        .eq("role", "student")
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
+  // The coordinator only sees their assigned program. RLS enforces this at the
+  // database level too; the explicit filters here keep the queries clear.
+  const profileRes = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  const coordinatorProgram = profileRes.data?.program_id ?? null;
+
+  const [companiesRes, allStudentsRes, latestStudentsRes] = await Promise.all([
+    coordinatorProgram
+      ? supabase
+          .from("companies")
+          .select("*")
+          .contains("eligibility_programs", [coordinatorProgram])
+          .order("created_at", { ascending: false })
+      : supabase
+          .from("companies")
+          .select("*")
+          .order("created_at", { ascending: false }),
+    supabase
+      .from("profiles")
+      .select(
+        "id, full_name, email, program_id, contact_number, student_id, created_at",
+      )
+      .eq("role", "student")
+      .eq("program_id", coordinatorProgram),
+    supabase
+      .from("profiles")
+      .select(
+        "id, full_name, email, program_id, contact_number, student_id, created_at",
+      )
+      .eq("role", "student")
+      .eq("program_id", coordinatorProgram)
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
 
   const allStudents = allStudentsRes.data ?? [];
   const studentIds = allStudents.map((student) => student.id);
-  const applicationsRes = studentIds.length
-    ? await supabase
-        .from("company_applications")
-        .select("user_id, status")
-        .in("user_id", studentIds)
-    : { data: [] };
+  const [applicationsRes, placementsRes] = await Promise.all([
+    studentIds.length
+      ? supabase
+          .from("company_applications")
+          .select("user_id, status")
+          .in("user_id", studentIds)
+      : Promise.resolve({ data: [] }),
+    studentIds.length
+      ? supabase
+          .from("ojt_placements")
+          .select("user_id, company:companies(id, name)")
+          .in("user_id", studentIds)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const statusByStudentId = (applicationsRes.data ?? []).reduce(
     (acc, application) => {
@@ -56,6 +80,22 @@ export default async function CoordinatorPage({ searchParams }: Props) {
       return acc;
     },
     {} as Record<string, string[]>,
+  );
+
+  const placementByStudentId = (
+    (placementsRes.data ?? []) as Array<{
+      user_id: string;
+      company: { id: string; name: string }[] | { id: string; name: string } | null;
+    }>
+  ).reduce(
+    (acc, placement) => {
+      const company = Array.isArray(placement.company)
+        ? placement.company[0]
+        : placement.company;
+      acc[placement.user_id] = company?.name ?? null;
+      return acc;
+    },
+    {} as Record<string, string | null>,
   );
 
   function deriveStudentStatus(statuses: string[] | undefined) {
@@ -96,6 +136,7 @@ export default async function CoordinatorPage({ searchParams }: Props) {
       allStudents={allStudents.map((student) => ({
         ...student,
         application_status: deriveStudentStatus(statusByStudentId[student.id]),
+        placement_company: placementByStudentId[student.id] ?? null,
       }))}
       latestStudents={latestStudentsRes.data ?? []}
       initialTab={resolvedSearchParams?.tab}

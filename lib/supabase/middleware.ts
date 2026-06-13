@@ -51,11 +51,22 @@ export async function updateSession(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, is_active")
     .eq("id", user.id)
     .single();
 
   const role = profile?.role as string | undefined;
+
+  // A deactivated coordinator is locked out entirely: sign them out and bounce
+  // to the login page with a notice. Runs on every request, so existing
+  // sessions are killed on their next navigation.
+  if (role === "coordinator" && profile?.is_active === false) {
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "?deactivated=1";
+    return NextResponse.redirect(url);
+  }
 
   if (!role) {
     if (pathname === "/login" || pathname === "/register") {
