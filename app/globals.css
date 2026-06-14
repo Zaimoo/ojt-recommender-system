@@ -72,3 +72,80 @@ main.overflow-auto {
   border: 5px solid transparent;
   border-right-color: #0f172a;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Report printing / PDF export
+   Only #report-print-area is sent to the printer; the sidebar,
+   header, and on-screen controls are dropped so the PDF is a clean
+   document rather than a screenshot of the app.
+   ───────────────────────────────────────────────────────────── */
+
+/* Shown only when printing */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 13mm;
+  }
+
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    background: #fff !important;
+  }
+
+  /* Hide the whole app, then reveal only the report area. */
+  body * {
+    visibility: hidden;
+  }
+  #report-print-area,
+  #report-print-area * {
+    visibility: visible;
+  }
+
+  #report-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Elements marked no-print stay gone even inside the report area. */
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Keep colored fills (stat tiles, skill/progress bars) in the PDF. */
+  #report-print-area * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Avoid splitting a card across two pages. */
+  .report-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .report-break-before {
+    break-before: page;
+  }
+
+  /* Tables can flow across pages but keep rows intact. */
+  .report-card table {
+    break-inside: auto;
+  }
+  .report-card tr {
+    break-inside: avoid;
+  }
+}

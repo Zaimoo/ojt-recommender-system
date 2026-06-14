@@ -1,15 +1,28 @@
 "use client";
 
-import { LayoutDashboard, Users, Building2, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  BarChart3,
+  Settings,
+} from "lucide-react";
 import { AppSidebar } from "@/components/ui/app-sidebar";
 import type { Profile } from "@/types";
 
-type ActiveSection = "dashboard" | "students" | "companies" | "account";
+type ActiveSection =
+  | "dashboard"
+  | "students"
+  | "companies"
+  | "reports"
+  | "account";
 
 interface Props {
   profile: Profile | null;
   active: ActiveSection;
-  onTabChange?: (tab: "dashboard" | "students" | "companies") => void;
+  onTabChange?: (
+    tab: "dashboard" | "students" | "companies" | "reports",
+  ) => void;
 }
 
 export function CoordinatorSidebar({ profile, active, onTabChange }: Props) {
@@ -34,6 +47,13 @@ export function CoordinatorSidebar({ profile, active, onTabChange }: Props) {
       onClick: () => onTabChange?.("companies"),
       href: onTabChange ? undefined : "/coordinator?tab=companies",
       active: active === "companies",
+    },
+    {
+      label: "Reports",
+      icon: BarChart3,
+      onClick: () => onTabChange?.("reports"),
+      href: onTabChange ? undefined : "/coordinator?tab=reports",
+      active: active === "reports",
     },
     {
       label: "Account Settings",

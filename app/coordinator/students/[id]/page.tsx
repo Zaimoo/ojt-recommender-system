@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
+import { PlacementHoursForm } from "./placement-hours-form";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -72,7 +73,7 @@ export default async function CoordinatorStudentPage({ params }: Props) {
   const placementRes = await supabase
     .from("ojt_placements")
     .select(
-      "application_id, moa_url, certificate_url, company:companies(id, name)",
+      "application_id, moa_url, certificate_url, required_hours, rendered_hours, company:companies(id, name)",
     )
     .eq("user_id", id)
     .maybeSingle();
@@ -209,6 +210,11 @@ export default async function CoordinatorStudentPage({ params }: Props) {
                       </span>
                     )}
                   </div>
+                  <PlacementHoursForm
+                    userId={student.id}
+                    requiredHours={placement?.required_hours ?? 486}
+                    renderedHours={placement?.rendered_hours ?? 0}
+                  />
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-slate-400">
