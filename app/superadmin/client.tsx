@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountForm } from "@/app/account/account-form";
+import { ReportsPanel } from "@/components/reports/reports-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createCompany,
@@ -124,12 +125,14 @@ export function SuperadminPanelClient({
     | "students"
     | "coordinators"
     | "companies"
+    | "reports"
     | "audit"
     | "account"
   >(
     initialTab === "students" ||
       initialTab === "coordinators" ||
       initialTab === "companies" ||
+      initialTab === "reports" ||
       initialTab === "audit" ||
       initialTab === "account"
       ? initialTab
@@ -369,6 +372,7 @@ export function SuperadminPanelClient({
     students: "Students",
     coordinators: "Coordinators",
     companies: "Companies",
+    reports: "Reports",
     audit: "Audit Log",
     account: "Account Settings",
   };
@@ -1198,6 +1202,8 @@ export function SuperadminPanelClient({
               </div>
             </div>
           )}
+
+          {activeTab === "reports" && <ReportsPanel role="superadmin" />}
 
           {activeTab === "audit" && (() => {
             const AUDIT_PAGE_SIZE = 10;

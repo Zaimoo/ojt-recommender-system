@@ -5,6 +5,7 @@ import {
   Users,
   UserCog,
   Building2,
+  BarChart3,
   FileText,
   Settings,
 } from "lucide-react";
@@ -16,6 +17,7 @@ type ActiveSection =
   | "students"
   | "coordinators"
   | "companies"
+  | "reports"
   | "audit"
   | "account";
 
@@ -28,6 +30,7 @@ interface Props {
       | "students"
       | "coordinators"
       | "companies"
+      | "reports"
       | "audit"
       | "account",
   ) => void;
@@ -62,6 +65,13 @@ export function SuperadminSidebar({ profile, active, onTabChange }: Props) {
       onClick: () => onTabChange?.("companies"),
       href: onTabChange ? undefined : "/superadmin?tab=companies",
       active: active === "companies",
+    },
+    {
+      label: "Reports",
+      icon: BarChart3,
+      onClick: () => onTabChange?.("reports"),
+      href: onTabChange ? undefined : "/superadmin?tab=reports",
+      active: active === "reports",
     },
     {
       label: "Audit Log",

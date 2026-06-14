@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
+import { ReportsPanel } from "@/components/reports/reports-panel";
 import { Plus, Pencil, Trash2, X, Building2, Users, Globe, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Profile, Company, ProgramId } from "@/types";
 
@@ -66,9 +67,11 @@ export function CoordinatorPanelClient({
   ).sort((a, b) => a.localeCompare(b));
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "students" | "companies"
+    "dashboard" | "students" | "companies" | "reports"
   >(
-    initialTab === "students" || initialTab === "companies"
+    initialTab === "students" ||
+      initialTab === "companies" ||
+      initialTab === "reports"
       ? initialTab
       : "dashboard",
   );
@@ -249,6 +252,7 @@ export function CoordinatorPanelClient({
     dashboard: "Dashboard",
     students: "All Students",
     companies: "Companies",
+    reports: "Reports",
   };
 
   return (
@@ -671,6 +675,14 @@ export function CoordinatorPanelClient({
                 })}
               </div>
             </div>
+          )}
+
+          {/* ── Reports Tab ───────────────────────────────── */}
+          {activeTab === "reports" && (
+            <ReportsPanel
+              role="coordinator"
+              lockedProgram={profile?.program_id ?? null}
+            />
           )}
         </main>
       </div>

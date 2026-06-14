@@ -278,9 +278,17 @@ create table if not exists public.ojt_placements (
   moa_url          text,
   certificate_path text,
   certificate_url  text,
+  required_hours   integer not null default 486,
+  rendered_hours   integer not null default 0,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
+
+-- Existing deployments: ensure OJT hours columns exist. required_hours
+-- defaults to 486 (the standard CHED OJT requirement); coordinators may
+-- override per placement.
+alter table public.ojt_placements add column if not exists required_hours integer not null default 486;
+alter table public.ojt_placements add column if not exists rendered_hours integer not null default 0;
 
 alter table public.ojt_placements enable row level security;
 
@@ -311,6 +319,35 @@ drop policy if exists "Coordinators can read placements" on public.ojt_placement
 create policy "Coordinators can read placements"
   on public.ojt_placements for select
   using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = ojt_placements.user_id
+          and p.program_id is not distinct from public.coordinator_program()
+      )
+    )
+  );
+
+-- Coordinators (own program) and superadmins can update placements so they can
+-- record rendered/required OJT hours. Students still own their placement via the
+-- "Students can update own placement" policy above.
+drop policy if exists "Coordinators can update placements" on public.ojt_placements;
+create policy "Coordinators can update placements"
+  on public.ojt_placements for update
+  using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = ojt_placements.user_id
+          and p.program_id is not distinct from public.coordinator_program()
+      )
+    )
+  )
+  with check (
     public.is_superadmin()
     or (
       public.is_coordinator()

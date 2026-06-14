@@ -70,6 +70,8 @@ export interface OjtPlacement {
   moa_url: string | null;
   certificate_path: string | null;
   certificate_url: string | null;
+  required_hours: number;
+  rendered_hours: number;
   created_at: string;
   updated_at: string;
 }
