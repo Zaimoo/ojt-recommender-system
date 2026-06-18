@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { updateAccount } from "@/app/actions/account";
-import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -167,28 +166,6 @@ export function AccountForm({ profile }: Props) {
               ) : (
                 <p className="text-xs text-slate-500">No resume uploaded yet.</p>
               )}
-            </div>
-          )}
-
-          {profile?.role === "coordinator" && (
-            <div className="space-y-2">
-              <Label htmlFor="assigned_program">Assigned Program</Label>
-              <select
-                id="assigned_program"
-                name="assigned_program"
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                defaultValue={profile?.program_id ?? ""}
-                required
-              >
-                <option value="" disabled>
-                  Select program
-                </option>
-                {PROGRAM_OPTIONS.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
-                  </option>
-                ))}
-              </select>
             </div>
           )}
 

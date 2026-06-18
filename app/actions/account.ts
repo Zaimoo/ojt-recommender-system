@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PROGRAM_OPTIONS, type ProgramOption } from "@/lib/constants/programs";
 import { createClient } from "@/lib/supabase/server";
 
 export type AccountActionResult = { success: true } | { error: string };
@@ -26,7 +25,6 @@ export async function updateAccount(
   const fullName = (formData.get("full_name") as string)?.trim();
   const contactNumber = (formData.get("contact_number") as string)?.trim();
   const studentId = (formData.get("student_id") as string)?.trim();
-  const assignedProgram = (formData.get("assigned_program") as string)?.trim();
   const newEmail = (formData.get("email") as string)?.trim();
   const newPassword = (formData.get("new_password") as string) ?? "";
   const resume = formData.get("resume");
@@ -53,13 +51,6 @@ export async function updateAccount(
     return { error: "Password must be at least 6 characters long." };
   }
 
-  if (assignedProgram) {
-    const programId = assignedProgram.toUpperCase() as ProgramOption;
-    if (!PROGRAM_OPTIONS.includes(programId)) {
-      return { error: "Please select a valid program." };
-    }
-  }
-
   if (newEmail && newEmail !== profile?.email) {
     const { error } = await supabase.auth.updateUser({ email: newEmail });
     if (error) return { error: error.message };
@@ -78,7 +69,6 @@ export async function updateAccount(
   if (typeof contactNumber === "string") updates.contact_number = contactNumber;
   if (typeof studentId === "string") updates.student_id = studentId;
   if (newEmail) updates.email = newEmail;
-  if (assignedProgram) updates.program_id = assignedProgram.toUpperCase();
 
   if (resume instanceof File && resume.size > 0) {
     const safeName = resume.name.replace(/[^a-zA-Z0-9._-]/g, "_");
