@@ -233,8 +233,6 @@ export function downloadReportPdf(report: ReportData) {
   );
   drawStatRow(cur, [
     { label: "Enrolled in OJT", value: report.studentOverview.enrolled, color: BLUE },
-    { label: "Completed OJT", value: report.studentOverview.completed, color: EMERALD },
-    { label: "Did Not Complete", value: report.studentOverview.notCompleted, color: AMBER },
   ]);
 
   // 2. Company Placement Summary
@@ -285,30 +283,18 @@ export function downloadReportPdf(report: ReportData) {
     { label: "Pending", value: report.applications.pending, color: AMBER },
   ]);
 
-  // 4. OJT Completion Summary
+  // 4. Most Common Student Skills
   sectionHeading(
     cur,
-    "4. OJT Completion Summary",
-    "Based on rendered vs. required hours recorded per placement",
-  );
-  drawStatRow(cur, [
-    { label: "Completed Required Hours", value: report.ojtCompletion.completedHours, color: EMERALD },
-    { label: "Incomplete Hours", value: report.ojtCompletion.incompleteHours, color: AMBER },
-    { label: "Avg. Hours Rendered", value: report.ojtCompletion.averageHours, color: BLUE },
-  ]);
-
-  // 5. Most Common Student Skills
-  sectionHeading(
-    cur,
-    "5. Most Common Student Skills",
+    "4. Most Common Student Skills",
     "Submitted by students placed this period",
   );
   drawSkillBars(cur, report.skills.topStudentSkills);
 
-  // 6. Most In-Demand Company Skills
+  // 5. Most In-Demand Company Skills
   sectionHeading(
     cur,
-    "6. Most In-Demand Company Skills",
+    "5. Most In-Demand Company Skills",
     "Required across participating companies",
   );
   drawSkillBars(cur, report.skills.topCompanySkills);

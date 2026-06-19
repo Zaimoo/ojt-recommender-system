@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isValidContactNumber, isValidStudentId } from "@/lib/validation";
 import { redirect } from "next/navigation";
 
 // ─────────────────────────────────────────────────────────────
@@ -19,6 +20,16 @@ export async function signUp(formData: FormData) {
 
   if (!studentId.trim()) {
     return { error: "Student ID number is required." };
+  }
+
+  if (!isValidStudentId(studentId)) {
+    return { error: "Invalid Student ID. Format: 2022-1894 (YYYY-0000)." };
+  }
+
+  if (contactNumber.trim() && !isValidContactNumber(contactNumber)) {
+    return {
+      error: "Invalid contact number. Use +63 966 368 5824 or 09663685824.",
+    };
   }
 
   try {

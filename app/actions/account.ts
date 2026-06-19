@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isValidContactNumber, isValidStudentId } from "@/lib/validation";
 
 export type AccountActionResult = { success: true } | { error: string };
 
@@ -29,22 +30,16 @@ export async function updateAccount(
   const newPassword = (formData.get("new_password") as string) ?? "";
   const resume = formData.get("resume");
 
-  if (contactNumber) {
-    const digitsOnly = contactNumber.replace(/\D/g, "");
-    if (digitsOnly.length !== 11) {
-      return {
-        error: "Invalid format. Contact number should be 11 numbers long.",
-      };
-    }
+  if (contactNumber && !isValidContactNumber(contactNumber)) {
+    return {
+      error: "Invalid contact number. Use +63 966 368 5824 or 09663685824.",
+    };
   }
 
-  if (studentId) {
-    const studentIdPattern = /^\d{4}-\d{4}$/;
-    if (!studentIdPattern.test(studentId)) {
-      return {
-        error: "Student ID number invalid. Format should be YYYY-0000.",
-      };
-    }
+  if (studentId && !isValidStudentId(studentId)) {
+    return {
+      error: "Invalid Student ID. Format: 2022-1894 (YYYY-0000).",
+    };
   }
 
   if (newPassword.trim().length > 0 && newPassword.trim().length < 6) {

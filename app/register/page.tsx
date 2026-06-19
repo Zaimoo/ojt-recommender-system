@@ -6,14 +6,50 @@ import { signUp } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  isValidContactNumber,
+  isValidStudentId,
+  CONTACT_NUMBER_HINT,
+  STUDENT_ID_HINT,
+} from "@/lib/validation";
 import { Briefcase, UserPlus, MailCheck, ChevronLeft } from "lucide-react";
+
+interface FieldErrors {
+  contact_number?: string;
+  student_id?: string;
+}
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  function clearFieldError(field: keyof FieldErrors) {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   async function handleSubmit(formData: FormData) {
+    const contactNumber = (formData.get("contact_number") as string)?.trim();
+    const studentId = (formData.get("student_id") as string)?.trim();
+
+    const errors: FieldErrors = {};
+    if (contactNumber && !isValidContactNumber(contactNumber)) {
+      errors.contact_number = `Invalid format. ${CONTACT_NUMBER_HINT}`;
+    }
+    if (studentId && !isValidStudentId(studentId)) {
+      errors.student_id = `Invalid format. ${STUDENT_ID_HINT}`;
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     setPending(true);
     setError(null);
     try {
@@ -226,10 +262,19 @@ export default function RegisterPage() {
               <Input
                 id="contact_number"
                 name="contact_number"
-                placeholder="+63 9xx xxx xxxx"
+                placeholder="+63 966 368 5824"
                 required
+                aria-invalid={!!fieldErrors.contact_number}
+                onChange={() => clearFieldError("contact_number")}
                 className="h-11"
               />
+              {fieldErrors.contact_number ? (
+                <p className="text-xs text-red-600">
+                  {fieldErrors.contact_number}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">{CONTACT_NUMBER_HINT}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -242,10 +287,17 @@ export default function RegisterPage() {
               <Input
                 id="student_id"
                 name="student_id"
-                placeholder="2024-00001"
+                placeholder="2022-1894"
                 required
+                aria-invalid={!!fieldErrors.student_id}
+                onChange={() => clearFieldError("student_id")}
                 className="h-11"
               />
+              {fieldErrors.student_id ? (
+                <p className="text-xs text-red-600">{fieldErrors.student_id}</p>
+              ) : (
+                <p className="text-xs text-slate-400">{STUDENT_ID_HINT}</p>
+              )}
             </div>
 
             <Button

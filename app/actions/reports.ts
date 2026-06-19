@@ -22,8 +22,6 @@ export interface ReportData {
   };
   studentOverview: {
     enrolled: number;
-    completed: number;
-    notCompleted: number;
   };
   companyPlacement: {
     companiesParticipated: number;
@@ -34,11 +32,6 @@ export interface ReportData {
     accepted: number;
     rejected: number;
     pending: number;
-  };
-  ojtCompletion: {
-    completedHours: number;
-    incompleteHours: number;
-    averageHours: number;
   };
   skills: {
     topStudentSkills: SkillCount[];
@@ -142,10 +135,9 @@ export async function generateReport(input: {
       program,
       generatedAt: new Date().toISOString(),
     },
-    studentOverview: { enrolled: 0, completed: 0, notCompleted: 0 },
+    studentOverview: { enrolled: 0 },
     companyPlacement: { companiesParticipated: 0, perCompany: [] },
     applications: { total: 0, accepted: 0, rejected: 0, pending: 0 },
-    ojtCompletion: { completedHours: 0, incompleteHours: 0, averageHours: 0 },
     skills: { topStudentSkills: [], topCompanySkills: [] },
   };
 
@@ -167,9 +159,7 @@ export async function generateReport(input: {
   const [placementsRes, applicationsRes, companiesRes] = await Promise.all([
     supabase
       .from("ojt_placements")
-      .select(
-        "user_id, required_hours, rendered_hours, company:companies(name)",
-      )
+      .select("user_id, company:companies(name)")
       .in("user_id", studentIds)
       .gte("created_at", startISO)
       .lte("created_at", endISO),
@@ -187,23 +177,11 @@ export async function generateReport(input: {
 
   const placements = (placementsRes.data ?? []) as Array<{
     user_id: string;
-    required_hours: number;
-    rendered_hours: number;
     company: { name: string }[] | { name: string } | null;
   }>;
 
-  // ── Student Overview + OJT Completion ──────────────────────────
+  // ── Student Overview ───────────────────────────────────────────
   const enrolled = placements.length;
-  const completed = placements.filter(
-    (p) => p.required_hours > 0 && p.rendered_hours >= p.required_hours,
-  ).length;
-  const notCompleted = enrolled - completed;
-  const totalRendered = placements.reduce(
-    (sum, p) => sum + (p.rendered_hours ?? 0),
-    0,
-  );
-  const averageHours =
-    enrolled > 0 ? Math.round((totalRendered / enrolled) * 10) / 10 : 0;
 
   // ── Company Placement Summary ──────────────────────────────────
   const perCompanyMap = new Map<string, number>();
@@ -248,17 +226,12 @@ export async function generateReport(input: {
         program,
         generatedAt: new Date().toISOString(),
       },
-      studentOverview: { enrolled, completed, notCompleted },
+      studentOverview: { enrolled },
       companyPlacement: {
         companiesParticipated: perCompany.length,
         perCompany,
       },
       applications: { total: apps.length, accepted, rejected, pending },
-      ojtCompletion: {
-        completedHours: completed,
-        incompleteHours: notCompleted,
-        averageHours,
-      },
       skills: { topStudentSkills, topCompanySkills },
     },
   };
