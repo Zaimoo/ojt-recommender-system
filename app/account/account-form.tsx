@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  isValidContactNumber,
+  isValidStudentId,
+  CONTACT_NUMBER_HINT,
+  STUDENT_ID_HINT,
+} from "@/lib/validation";
 import type { Profile } from "@/types";
 
 interface Props {
@@ -24,19 +30,12 @@ function validate(formData: FormData, role: string | undefined): FieldErrors {
   const studentId = (formData.get("student_id") as string)?.trim();
   const newPassword = (formData.get("new_password") as string) ?? "";
 
-  if (contactNumber) {
-    const digits = contactNumber.replace(/\D/g, "");
-    if (digits.length !== 11) {
-      errors.contact_number =
-        "Invalid format. Contact number should be 11 digits long.";
-    }
+  if (contactNumber && !isValidContactNumber(contactNumber)) {
+    errors.contact_number = `Invalid format. ${CONTACT_NUMBER_HINT}`;
   }
 
-  if (role === "student" && studentId) {
-    if (!/^\d{4}-\d{4}$/.test(studentId)) {
-      errors.student_id =
-        "Invalid format. Student ID should be YYYY-0000 (e.g. 2023-0001).";
-    }
+  if (role === "student" && studentId && !isValidStudentId(studentId)) {
+    errors.student_id = `Invalid format. ${STUDENT_ID_HINT}`;
   }
 
   if (newPassword.trim().length > 0 && newPassword.trim().length < 6) {
@@ -112,7 +111,7 @@ export function AccountForm({ profile }: Props) {
             <Input
               id="contact_number"
               name="contact_number"
-              placeholder="+63 9xx xxx xxxx"
+              placeholder="+63 966 368 5824"
               defaultValue={profile?.contact_number ?? ""}
               aria-invalid={!!fieldErrors.contact_number}
               onChange={() => clearFieldError("contact_number")}
@@ -120,7 +119,7 @@ export function AccountForm({ profile }: Props) {
             {fieldErrors.contact_number ? (
               <p className="text-xs text-red-600">{fieldErrors.contact_number}</p>
             ) : (
-              <p className="text-xs text-slate-400">11 digits, e.g. 09171234567</p>
+              <p className="text-xs text-slate-400">{CONTACT_NUMBER_HINT}</p>
             )}
           </div>
 
@@ -130,7 +129,7 @@ export function AccountForm({ profile }: Props) {
               <Input
                 id="student_id"
                 name="student_id"
-                placeholder="YYYY-0000"
+                placeholder="2022-1894"
                 defaultValue={profile?.student_id ?? ""}
                 aria-invalid={!!fieldErrors.student_id}
                 onChange={() => clearFieldError("student_id")}
@@ -138,9 +137,7 @@ export function AccountForm({ profile }: Props) {
               {fieldErrors.student_id ? (
                 <p className="text-xs text-red-600">{fieldErrors.student_id}</p>
               ) : (
-                <p className="text-xs text-slate-400">
-                  Format: YYYY-0000 (e.g. 2023-0001)
-                </p>
+                <p className="text-xs text-slate-400">{STUDENT_ID_HINT}</p>
               )}
             </div>
           )}

@@ -272,20 +272,6 @@ export function ReportsPanel({ role, lockedProgram }: Props) {
                 bg="bg-blue-50"
                 color="text-blue-600"
               />
-              <StatCard
-                label="Completed OJT"
-                value={report.studentOverview.completed}
-                icon={GraduationCap}
-                bg="bg-emerald-50"
-                color="text-emerald-600"
-              />
-              <StatCard
-                label="Did Not Complete"
-                value={report.studentOverview.notCompleted}
-                icon={XCircle}
-                bg="bg-amber-50"
-                color="text-amber-600"
-              />
             </div>
           </SectionCard>
 
@@ -369,46 +355,16 @@ export function ReportsPanel({ role, lockedProgram }: Props) {
             </div>
           </SectionCard>
 
-          {/* 4. OJT Completion Summary */}
-          <SectionCard
-            title="4. OJT Completion Summary"
-            subtitle="Based on rendered vs. required hours recorded per placement"
-          >
-            <div className="grid gap-4 sm:grid-cols-3">
-              <StatCard
-                label="Completed Required Hours"
-                value={report.ojtCompletion.completedHours}
-                icon={GraduationCap}
-                bg="bg-emerald-50"
-                color="text-emerald-600"
-              />
-              <StatCard
-                label="Incomplete Hours"
-                value={report.ojtCompletion.incompleteHours}
-                icon={Clock}
-                bg="bg-amber-50"
-                color="text-amber-600"
-              />
-              <StatCard
-                label="Avg. Hours Rendered"
-                value={report.ojtCompletion.averageHours}
-                icon={Clock}
-                bg="bg-blue-50"
-                color="text-blue-600"
-              />
-            </div>
-          </SectionCard>
-
-          {/* 5. Skills Summary */}
+          {/* 4. Skills Summary */}
           <div className="grid gap-6 lg:grid-cols-2">
             <SectionCard
-              title="5. Most Common Student Skills"
+              title="4. Most Common Student Skills"
               subtitle="Submitted by students placed this period"
             >
               <SkillBars skills={report.skills.topStudentSkills} />
             </SectionCard>
             <SectionCard
-              title="6. Most In-Demand Company Skills"
+              title="5. Most In-Demand Company Skills"
               subtitle="Required across participating companies"
             >
               <SkillBars skills={report.skills.topCompanySkills} />
@@ -417,8 +373,7 @@ export function ReportsPanel({ role, lockedProgram }: Props) {
 
           <p className="flex items-center gap-1.5 text-xs text-slate-400">
             <Building2 className="h-3.5 w-3.5" />
-            Report scoped to {programLabel}. Hours-based metrics depend on
-            coordinators recording rendered hours on each placement.
+            Report scoped to {programLabel}.
           </p>
         </div>
       )}
