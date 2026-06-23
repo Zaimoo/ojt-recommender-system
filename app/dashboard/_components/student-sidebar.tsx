@@ -1,11 +1,18 @@
 "use client";
 
-import { LayoutDashboard, Sparkles, FileText, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Sparkles,
+  Building2,
+  FileText,
+  Settings,
+} from "lucide-react";
 import { AppSidebar } from "@/components/ui/app-sidebar";
 import type { Profile } from "@/types";
 
 type ActiveSection =
   | "dashboard"
+  | "companies"
   | "applications"
   | "recommendations"
   | "account";
@@ -28,6 +35,12 @@ export function StudentSidebar({ profile, active }: Props) {
       icon: Sparkles,
       href: "/dashboard/recommendations",
       active: active === "recommendations",
+    },
+    {
+      label: "Companies",
+      icon: Building2,
+      href: "/dashboard/companies",
+      active: active === "companies",
     },
     {
       label: "Applications",
