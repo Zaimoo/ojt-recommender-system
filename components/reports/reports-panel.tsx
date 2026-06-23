@@ -10,6 +10,8 @@ import { PROGRAM_OPTIONS } from "@/lib/constants/programs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   Users,
   GraduationCap,
@@ -41,34 +43,6 @@ function formatDate(value: string) {
     month: "short",
     day: "numeric",
   });
-}
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  bg,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  icon: typeof Users;
-  bg: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${bg}`}
-      >
-        <Icon className={`h-5 w-5 ${color}`} />
-      </div>
-      <div>
-        <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-2xl font-bold text-slate-900">{value}</p>
-      </div>
-    </div>
-  );
 }
 
 function SectionCard({
@@ -212,13 +186,12 @@ export function ReportsPanel({ role, lockedProgram }: Props) {
       </div>
 
       {!report && !loading && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center print:hidden">
-          <FileText className="mb-3 h-10 w-10 text-slate-300" />
-          <p className="font-medium text-slate-500">No report generated yet</p>
-          <p className="mt-1 text-sm text-slate-400">
-            Choose a date range and program, then click Generate Report.
-          </p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No report generated yet"
+          description="Choose a date range and program, then click Generate Report."
+          className="print:hidden"
+        />
       )}
 
       {report && (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { StudentSidebar } from "../_components/student-sidebar";
 import { FileText, ArrowUpRight } from "lucide-react";
 
@@ -74,17 +75,23 @@ export default async function ApplicationHistoryPage() {
         <main className="flex-1 overflow-auto p-6 md:p-8">
           <div className="mx-auto max-w-4xl">
             {!applications || applications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-20 text-center">
-                <FileText className="mb-3 h-10 w-10 text-slate-300" />
-                <p className="font-medium text-slate-500">No applications yet</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  Head to{" "}
-                  <Link href="/dashboard/recommendations" className="text-blue-600 underline">
-                    Recommendations
-                  </Link>{" "}
-                  to find companies and apply.
-                </p>
-              </div>
+              <EmptyState
+                icon={FileText}
+                title="No applications yet"
+                className="py-20"
+                description={
+                  <>
+                    Head to{" "}
+                    <Link
+                      href="/dashboard/recommendations"
+                      className="text-blue-600 underline"
+                    >
+                      Recommendations
+                    </Link>{" "}
+                    to find companies and apply.
+                  </>
+                }
+              />
             ) : (
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-6 py-4">

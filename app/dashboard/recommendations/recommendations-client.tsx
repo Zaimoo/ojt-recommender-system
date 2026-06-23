@@ -5,14 +5,15 @@ import { useMemo, useState } from "react";
 import { getRecommendations } from "@/app/actions/recommendations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   Sparkles,
   CheckCircle,
   AlertCircle,
   BarChart3,
   TrendingUp,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import type { RecommendationResult } from "@/types";
 
@@ -169,46 +170,27 @@ function RecommendationsClientInner({ cacheKey }: Props) {
       {/* Insights stat row */}
       {insights && (
         <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              label: "Highest Match",
-              value: `${insights.highestMatch}%`,
-              icon: TrendingUp,
-              color: "text-emerald-600",
-              bg: "bg-emerald-50",
-            },
-            {
-              label: "Average Match",
-              value: `${insights.averageMatch}%`,
-              icon: BarChart3,
-              color: "text-blue-600",
-              bg: "bg-blue-50",
-            },
-            {
-              label: "Program Matches",
-              value: String(insights.programMatched),
-              icon: CheckCircle,
-              color: "text-violet-600",
-              bg: "bg-violet-50",
-            },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stat.bg}`}
-              >
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{stat.label}</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {stat.value}
-                </p>
-              </div>
-            </div>
-          ))}
+          <StatCard
+            label="Highest Match"
+            value={`${insights.highestMatch}%`}
+            icon={TrendingUp}
+            color="text-emerald-600"
+            bg="bg-emerald-50"
+          />
+          <StatCard
+            label="Average Match"
+            value={`${insights.averageMatch}%`}
+            icon={BarChart3}
+            color="text-blue-600"
+            bg="bg-blue-50"
+          />
+          <StatCard
+            label="Program Matches"
+            value={String(insights.programMatched)}
+            icon={CheckCircle}
+            color="text-violet-600"
+            bg="bg-violet-50"
+          />
         </div>
       )}
 
@@ -243,13 +225,11 @@ function RecommendationsClientInner({ cacheKey }: Props) {
 
       {/* Company cards */}
       {recommendations.length === 0 && !recError && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <Sparkles className="mb-3 h-10 w-10 text-slate-300" />
-          <p className="font-medium text-slate-500">No recommendations yet</p>
-          <p className="mt-1 text-sm text-slate-400">
-            Click &quot;Generate Recommendations&quot; to find matches
-          </p>
-        </div>
+        <EmptyState
+          icon={Sparkles}
+          title="No recommendations yet"
+          description='Click "Generate Recommendations" to find matches'
+        />
       )}
 
       {recommendations.length > 0 && (
@@ -318,31 +298,8 @@ function RecommendationsClientInner({ cacheKey }: Props) {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-          <span className="text-sm text-slate-600">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
 
       {lowScoreOpen && lowScore !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
