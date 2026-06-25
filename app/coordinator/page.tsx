@@ -133,11 +133,17 @@ export default async function CoordinatorPage({ searchParams }: Props) {
       profile={profileRes.data}
       companies={companies}
       companyCreators={creatorsById}
-      allStudents={allStudents.map((student) => ({
-        ...student,
-        application_status: deriveStudentStatus(statusByStudentId[student.id]),
-        placement_company: placementByStudentId[student.id] ?? null,
-      }))}
+      allStudents={allStudents.map((student) => {
+        const placementCompany = placementByStudentId[student.id] ?? null;
+        return {
+          ...student,
+          // A final OJT placement is the terminal status; it supersedes the
+          // application-derived status in the list.
+          application_status: placementCompany
+            ? "placement"
+            : deriveStudentStatus(statusByStudentId[student.id]),
+        };
+      })}
       latestStudents={latestStudentsRes.data ?? []}
       initialTab={resolvedSearchParams?.tab}
     />

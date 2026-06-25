@@ -291,9 +291,60 @@ export function ReportsPanel({ role, lockedProgram }: Props) {
             )}
           </SectionCard>
 
-          {/* 3. Application Summary */}
+          {/* 3. OJT Placement Details */}
           <SectionCard
-            title="3. Application Summary"
+            title="3. OJT Placement Details"
+            subtitle="Students placed during the selected period and when they started"
+          >
+            {report.placementDetails.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                No students started OJT in this period.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-slate-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50">
+                    <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <th className="px-4 py-2.5">ID No.</th>
+                      <th className="px-4 py-2.5">Name</th>
+                      <th className="px-4 py-2.5">Email</th>
+                      <th className="px-4 py-2.5">Contact</th>
+                      <th className="px-4 py-2.5">Company</th>
+                      <th className="px-4 py-2.5 text-right">Start Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {report.placementDetails.map((p, i) => (
+                      <tr key={`${p.studentId}-${p.company}-${i}`}>
+                        <td className="whitespace-nowrap px-4 py-2.5 font-mono text-slate-500">
+                          {p.studentId}
+                        </td>
+                        <td className="px-4 py-2.5 font-medium text-slate-900">
+                          {p.student}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700">
+                          {p.email}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-700">
+                          {p.contact}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700">
+                          {p.company}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right text-slate-700">
+                          {formatDate(p.startDate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SectionCard>
+
+          {/* 4. Application Summary */}
+          <SectionCard
+            title="4. Application Summary"
             subtitle="Applications submitted during the selected period"
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -331,13 +382,13 @@ export function ReportsPanel({ role, lockedProgram }: Props) {
           {/* 4. Skills Summary */}
           <div className="grid gap-6 lg:grid-cols-2">
             <SectionCard
-              title="4. Most Common Student Skills"
+              title="5. Most Common Student Skills"
               subtitle="Submitted by students placed this period"
             >
               <SkillBars skills={report.skills.topStudentSkills} />
             </SectionCard>
             <SectionCard
-              title="5. Most In-Demand Company Skills"
+              title="6. Most In-Demand Company Skills"
               subtitle="Required across participating companies"
             >
               <SkillBars skills={report.skills.topCompanySkills} />

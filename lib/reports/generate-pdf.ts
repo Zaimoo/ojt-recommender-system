@@ -270,10 +270,49 @@ export function downloadReportPdf(report: ReportData) {
     cur.y = ((doc as DocWithTable).lastAutoTable?.finalY ?? cur.y) + 8;
   }
 
-  // 3. Application Summary
+  // 3. OJT Placement Details
   sectionHeading(
     cur,
-    "3. Application Summary",
+    "3. OJT Placement Details",
+    "Students placed during the selected period and when they started",
+  );
+  if (report.placementDetails.length === 0) {
+    cur.ensure(7);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(...SUB);
+    doc.text("No students started OJT in this period.", MARGIN + 4, cur.y);
+    cur.y += 8;
+  } else {
+    autoTable(doc, {
+      startY: cur.y,
+      margin: { left: MARGIN, right: MARGIN },
+      head: [["ID No.", "Name", "Email", "Contact", "Company", "Start Date"]],
+      body: report.placementDetails.map((p) => [
+        p.studentId,
+        p.student,
+        p.email,
+        p.contact,
+        p.company,
+        formatDate(p.startDate),
+      ]),
+      styles: { fontSize: 8, cellPadding: 2, textColor: INK, overflow: "linebreak" },
+      headStyles: { fillColor: BLUE, textColor: [255, 255, 255], halign: "left" },
+      alternateRowStyles: { fillColor: BOX_BG },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        3: { cellWidth: 24 },
+        5: { halign: "right", cellWidth: 26 },
+      },
+      theme: "grid",
+    });
+    cur.y = ((doc as DocWithTable).lastAutoTable?.finalY ?? cur.y) + 8;
+  }
+
+  // 4. Application Summary
+  sectionHeading(
+    cur,
+    "4. Application Summary",
     "Applications submitted during the selected period",
   );
   drawStatRow(cur, [
@@ -283,18 +322,18 @@ export function downloadReportPdf(report: ReportData) {
     { label: "Pending", value: report.applications.pending, color: AMBER },
   ]);
 
-  // 4. Most Common Student Skills
+  // 5. Most Common Student Skills
   sectionHeading(
     cur,
-    "4. Most Common Student Skills",
+    "5. Most Common Student Skills",
     "Submitted by students placed this period",
   );
   drawSkillBars(cur, report.skills.topStudentSkills);
 
-  // 5. Most In-Demand Company Skills
+  // 6. Most In-Demand Company Skills
   sectionHeading(
     cur,
-    "5. Most In-Demand Company Skills",
+    "6. Most In-Demand Company Skills",
     "Required across participating companies",
   );
   drawSkillBars(cur, report.skills.topCompanySkills);

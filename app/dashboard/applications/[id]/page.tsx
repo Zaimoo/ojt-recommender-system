@@ -92,6 +92,15 @@ export default async function ApplicationDetailsPage({ params }: Props) {
   const isFinalPlacement = placement?.application_id === application.id;
   const hasOtherPlacement = !!placement && !isFinalPlacement;
 
+  const { data: historyRows } = await supabase
+    .from("ojt_placement_history")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("application_id", application.id)
+    .limit(1);
+  const wasFormerPlacement =
+    !isFinalPlacement && (historyRows?.length ?? 0) > 0;
+
   const statusOptions = nextStatusOptions(application.status);
 
   const updateStatusAction = async (formData: FormData) => {
@@ -149,6 +158,17 @@ export default async function ApplicationDetailsPage({ params }: Props) {
                   <Badge variant={statusBadgeVariant(application.status)}>
                     {prettyStatus(application.status)}
                   </Badge>
+                  {isFinalPlacement && (
+                    <Badge variant="default">Final Placement</Badge>
+                  )}
+                  {wasFormerPlacement && (
+                    <Badge
+                      variant="outline"
+                      className="border-slate-300 text-slate-500"
+                    >
+                      Former placement
+                    </Badge>
+                  )}
                   <span>
                     Submitted {formatDateTime(application.created_at)}
                   </span>
