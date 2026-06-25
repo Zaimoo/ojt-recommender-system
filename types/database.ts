@@ -76,6 +76,14 @@ export interface OjtPlacement {
   updated_at: string;
 }
 
+export interface OjtPlacementHistory {
+  id: string;
+  user_id: string;
+  application_id: string;
+  company_id: string;
+  selected_at: string;
+}
+
 export interface AuditLog {
   id: string;
   actor_id: string | null;
@@ -130,6 +138,11 @@ export interface Database {
         Row: OjtPlacement;
         Insert: Omit<OjtPlacement, "id" | "created_at" | "updated_at">;
         Update: Partial<Omit<OjtPlacement, "id" | "created_at" | "updated_at">>;
+      };
+      ojt_placement_history: {
+        Row: OjtPlacementHistory;
+        Insert: Omit<OjtPlacementHistory, "id" | "selected_at">;
+        Update: Partial<Omit<OjtPlacementHistory, "id" | "selected_at">>;
       };
       audit_logs: {
         Row: AuditLog;

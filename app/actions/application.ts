@@ -452,7 +452,7 @@ export async function setFinalPlacement(
 
   const { data: existing } = await supabase
     .from("ojt_placements")
-    .select("id, application_id")
+    .select("id, application_id, company_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -476,6 +476,16 @@ export async function setFinalPlacement(
     .upsert(placementRow, { onConflict: "user_id" });
 
   if (upsertError) return { error: upsertError.message };
+
+  // Replacing an existing placement with a different company: record the
+  // superseded one so it can be shown as a former placement to the student.
+  if (existing && existing.application_id !== applicationId) {
+    await supabase.from("ojt_placement_history").insert({
+      user_id: user.id,
+      application_id: existing.application_id,
+      company_id: existing.company_id,
+    });
+  }
 
   await logAudit({
     actorId: user.id,

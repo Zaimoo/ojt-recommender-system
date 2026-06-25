@@ -364,6 +364,48 @@ create trigger ojt_placements_updated_at
   before update on public.ojt_placements
   for each row execute function public.update_updated_at();
 
+-- 4c. OJT placement history – append-only log of superseded final placements.
+-- A row is written whenever a student replaces their final OJT placement with a
+-- different company, so the previously chosen company can be surfaced as a
+-- "former placement" in the student's application history.
+create table if not exists public.ojt_placement_history (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null references public.profiles(id) on delete cascade,
+  application_id uuid not null references public.company_applications(id) on delete cascade,
+  company_id     uuid not null references public.companies(id) on delete cascade,
+  selected_at    timestamptz not null default now()
+);
+
+create index if not exists ojt_placement_history_user_id_idx
+  on public.ojt_placement_history (user_id);
+
+alter table public.ojt_placement_history enable row level security;
+
+drop policy if exists "Students can read own placement history" on public.ojt_placement_history;
+create policy "Students can read own placement history"
+  on public.ojt_placement_history for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Students can insert own placement history" on public.ojt_placement_history;
+create policy "Students can insert own placement history"
+  on public.ojt_placement_history for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Coordinators can read placement history" on public.ojt_placement_history;
+create policy "Coordinators can read placement history"
+  on public.ojt_placement_history for select
+  using (
+    public.is_superadmin()
+    or (
+      public.is_coordinator()
+      and exists (
+        select 1 from public.profiles p
+        where p.id = ojt_placement_history.user_id
+          and p.program_id is not distinct from public.coordinator_program()
+      )
+    )
+  );
+
 -- 5. Audit logs
 create table if not exists public.audit_logs (
   id          uuid primary key default gen_random_uuid(),

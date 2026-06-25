@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { SuperadminSidebar } from "@/app/superadmin/_components/superadmin-sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { AccountForm } from "@/app/account/account-form";
 import { ReportsPanel } from "@/components/reports/reports-panel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { CompanyAdminListItem } from "@/components/company/company-admin-list-item";
 import {
   createCompany,
   updateCompany,
@@ -29,12 +31,7 @@ import {
   Building2,
   FileText,
   Plus,
-  Pencil,
-  Trash2,
   X,
-  Globe,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import type { Profile, ProgramId, Company } from "@/types";
 
@@ -82,11 +79,6 @@ interface Props {
   companyCreators: Record<string, CompanyCreator>;
   auditLogs: AuditLogEntry[];
   initialTab?: string;
-}
-
-function normalizeUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url;
-  return `https://${url}`;
 }
 
 function formatDate(value: string) {
@@ -1079,13 +1071,11 @@ export function SuperadminPanelClient({
 
               {/* Company list */}
               {companies.length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
-                  <Building2 className="mb-3 h-10 w-10 text-slate-300" />
-                  <p className="font-medium text-slate-500">No companies yet</p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Click &quot;Add Company&quot; to get started
-                  </p>
-                </div>
+                <EmptyState
+                  icon={Building2}
+                  title="No companies yet"
+                  description='Click "Add Company" to get started'
+                />
               )}
 
               <div className="space-y-3">
@@ -1097,106 +1087,26 @@ export function SuperadminPanelClient({
                     ? creator.full_name || creator.email
                     : company.created_by_name;
                   return (
-                    <div
+                    <CompanyAdminListItem
                       key={company.id}
-                      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-4 p-5">
-                        <div className="min-w-0 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold text-slate-900">
-                              {company.name}
-                            </p>
-                            {(company.eligibility_programs.length > 0
-                              ? company.eligibility_programs
-                              : ["N/A"]
-                            ).map((program) => (
-                              <Badge key={program} variant="outline">
-                                {program}
-                              </Badge>
-                            ))}
-                          </div>
-                          {company.company_overview && (
-                            <p className="text-sm text-slate-500 line-clamp-2">
-                              {company.company_overview}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap gap-1.5">
-                            {company.required_skills.map((skill) => (
-                              <Badge
-                                key={skill}
-                                variant="secondary"
-                                className="text-xs"
-                              >
-                                {skill}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex flex-wrap gap-4 pt-1 text-xs text-slate-400">
-                            {creatorLabel && (
-                              <span>Added by: {creatorLabel}</span>
-                            )}
-                            {company.hr_name && (
-                              <span>HR: {company.hr_name}</span>
-                            )}
-                            {company.email_address && (
-                              <span>{company.email_address}</span>
-                            )}
-                            {company.location_address && (
-                              <span>{company.location_address}</span>
-                            )}
-                            {company.website_url && (
-                              <a
-                                href={normalizeUrl(company.website_url)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center gap-1 text-blue-500 hover:underline"
-                              >
-                                <Globe className="h-3 w-3" /> Website
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Link
-                            href={`/companyDetails/${company.id}`}
-                            className="rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
-                          >
-                            View
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(company.id);
-                              setShowForm(false);
-                              setSelectedPrograms(company.eligibility_programs);
-                              setRequiredSkillsInput(
-                                company.required_skills.join(", "),
-                              );
-                            }}
-                            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirmDialog({
-                                title: "Delete company",
-                                message: `Are you sure you want to delete "${company.name}"? This action cannot be undone.`,
-                                onConfirm: () => executeDeleteCompany(company.id),
-                              })
-                            }
-                            className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      company={company}
+                      creatorLabel={creatorLabel}
+                      onEdit={() => {
+                        setEditingId(company.id);
+                        setShowForm(false);
+                        setSelectedPrograms(company.eligibility_programs);
+                        setRequiredSkillsInput(
+                          company.required_skills.join(", "),
+                        );
+                      }}
+                      onDelete={() =>
+                        setConfirmDialog({
+                          title: "Delete company",
+                          message: `Are you sure you want to delete "${company.name}"? This action cannot be undone.`,
+                          onConfirm: () => executeDeleteCompany(company.id),
+                        })
+                      }
+                    />
                   );
                 })}
               </div>
@@ -1278,31 +1188,11 @@ export function SuperadminPanelClient({
                 )}
               </div>
 
-              {totalAuditPages > 1 && (
-                <div className="flex items-center justify-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={auditPage === 1}
-                    onClick={() => setAuditPage((p) => p - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <span className="text-sm text-slate-600">
-                    Page {auditPage} of {totalAuditPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={auditPage === totalAuditPages}
-                    onClick={() => setAuditPage((p) => p + 1)}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <Pagination
+                page={auditPage}
+                totalPages={totalAuditPages}
+                onPageChange={setAuditPage}
+              />
             </div>
             );
           })()}

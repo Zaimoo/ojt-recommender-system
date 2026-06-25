@@ -1,8 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
+import { CompanyLogo } from "@/components/company/company-logo";
 import { StudentSidebar } from "@/app/dashboard/_components/student-sidebar";
 import { CoordinatorSidebar } from "@/app/coordinator/_components/coordinator-sidebar";
 import { SuperadminSidebar } from "@/app/superadmin/_components/superadmin-sidebar";
@@ -28,24 +28,6 @@ interface Props {
 function normalizeUrl(url: string): string {
   if (/^https?:\/\//i.test(url)) return url;
   return `https://${url}`;
-}
-
-// Deterministic gradient so logo-less companies still feel distinct.
-const GRADIENTS = [
-  "from-blue-500 to-indigo-600",
-  "from-violet-500 to-purple-600",
-  "from-emerald-500 to-teal-600",
-  "from-rose-500 to-pink-600",
-  "from-amber-500 to-orange-600",
-  "from-cyan-500 to-sky-600",
-];
-
-function gradientFor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  }
-  return GRADIENTS[hash % GRADIENTS.length];
 }
 
 export default async function CompanyDetailsPage({
@@ -123,7 +105,6 @@ export default async function CompanyDetailsPage({
     />
   );
 
-  const initial = company.name.trim()[0]?.toUpperCase() ?? "?";
   const applyHref = `/companyDetails/${company.id}/apply`;
 
   const contactItems = [
@@ -138,19 +119,10 @@ export default async function CompanyDetailsPage({
       {sidebar}
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8">
+        <header className="flex h-16 shrink-0 items-center border-b border-slate-200 bg-white px-8">
           <h1 className="text-lg font-semibold text-slate-900">
             Company Details
           </h1>
-          {isStudent && (
-            <Link
-              href={applyHref}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-            >
-              Apply Now
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          )}
         </header>
 
         <main className="flex-1 overflow-auto p-6 md:p-8">
@@ -169,28 +141,12 @@ export default async function CompanyDetailsPage({
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-center gap-4">
                     {/* Logo tile */}
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      {company.logo_url ? (
-                        <Image
-                          src={company.logo_url}
-                          alt={`${company.name} logo`}
-                          width={96}
-                          height={96}
-                          className="h-full w-full object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        <div
-                          className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${gradientFor(
-                            company.name,
-                          )}`}
-                        >
-                          <span className="text-3xl font-bold text-white">
-                            {initial}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    <CompanyLogo
+                      name={company.name}
+                      logoUrl={company.logo_url}
+                      className="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 bg-white shadow-sm"
+                      initialClassName="text-3xl text-white"
+                    />
 
                     <div>
                       <div className="flex flex-wrap items-center gap-2.5">

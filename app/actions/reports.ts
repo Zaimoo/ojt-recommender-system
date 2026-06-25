@@ -13,6 +13,15 @@ export interface CompanyPlacementCount {
   count: number;
 }
 
+export interface PlacementDetail {
+  studentId: string;
+  student: string;
+  email: string;
+  contact: string;
+  company: string;
+  startDate: string;
+}
+
 export interface ReportData {
   meta: {
     startDate: string;
@@ -27,6 +36,7 @@ export interface ReportData {
     companiesParticipated: number;
     perCompany: CompanyPlacementCount[];
   };
+  placementDetails: PlacementDetail[];
   applications: {
     total: number;
     accepted: number;
@@ -120,13 +130,16 @@ export async function generateReport(input: {
   // ── Students in scope ──────────────────────────────────────────
   let studentsQuery = supabase
     .from("profiles")
-    .select("id")
+    .select("id, full_name, student_id, email, contact_number")
     .eq("role", "student");
   if (program !== "ALL") studentsQuery = studentsQuery.eq("program_id", program);
   const { data: studentsData, error: studentsError } = await studentsQuery;
   if (studentsError) return { error: studentsError.message };
 
   const studentIds = (studentsData ?? []).map((s) => s.id);
+  const profileByStudentId = new Map(
+    (studentsData ?? []).map((s) => [s.id, s]),
+  );
 
   const empty: ReportData = {
     meta: {
@@ -137,6 +150,7 @@ export async function generateReport(input: {
     },
     studentOverview: { enrolled: 0 },
     companyPlacement: { companiesParticipated: 0, perCompany: [] },
+    placementDetails: [],
     applications: { total: 0, accepted: 0, rejected: 0, pending: 0 },
     skills: { topStudentSkills: [], topCompanySkills: [] },
   };
@@ -159,7 +173,7 @@ export async function generateReport(input: {
   const [placementsRes, applicationsRes, companiesRes] = await Promise.all([
     supabase
       .from("ojt_placements")
-      .select("user_id, company:companies(name)")
+      .select("user_id, created_at, company:companies(name)")
       .in("user_id", studentIds)
       .gte("created_at", startISO)
       .lte("created_at", endISO),
@@ -177,6 +191,7 @@ export async function generateReport(input: {
 
   const placements = (placementsRes.data ?? []) as Array<{
     user_id: string;
+    created_at: string;
     company: { name: string }[] | { name: string } | null;
   }>;
 
@@ -193,6 +208,26 @@ export async function generateReport(input: {
   const perCompany = [...perCompanyMap.entries()]
     .map(([company, count]) => ({ company, count }))
     .sort((a, b) => b.count - a.count || a.company.localeCompare(b.company));
+
+  // ── Placement Details (per student) ────────────────────────────
+  const placementDetails: PlacementDetail[] = placements
+    .map((p) => {
+      const company = Array.isArray(p.company) ? p.company[0] : p.company;
+      const profile = profileByStudentId.get(p.user_id);
+      return {
+        studentId: profile?.student_id || "—",
+        student: profile?.full_name || "Unknown student",
+        email: profile?.email || "—",
+        contact: profile?.contact_number || "—",
+        company: company?.name ?? "Unknown company",
+        startDate: p.created_at,
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.startDate.localeCompare(b.startDate) ||
+        a.student.localeCompare(b.student),
+    );
 
   // ── Application Summary ────────────────────────────────────────
   const apps = applicationsRes.data ?? [];
@@ -231,6 +266,7 @@ export async function generateReport(input: {
         companiesParticipated: perCompany.length,
         perCompany,
       },
+      placementDetails,
       applications: { total: apps.length, accepted, rejected, pending },
       skills: { topStudentSkills, topCompanySkills },
     },

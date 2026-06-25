@@ -19,6 +19,8 @@ function formatDate(value: string) {
 
 function statusBadgeVariant(status: string) {
   switch (status) {
+    case "placement":
+      return "default";
     case "accepted":
       return "success";
     case "rejected":
@@ -31,6 +33,7 @@ function statusBadgeVariant(status: string) {
 }
 
 function prettyStatus(status: string) {
+  if (status === "placement") return "Final Placement";
   return status.replace(/_/g, " ");
 }
 
@@ -69,18 +72,47 @@ export default async function CoordinatorStudentPage({ params }: Props) {
 
   if (studentRes.error || !studentRes.data) notFound();
 
-  const placementRes = await supabase
-    .from("ojt_placements")
-    .select(
-      "application_id, moa_url, certificate_url, company:companies(id, name)",
-    )
-    .eq("user_id", id)
-    .maybeSingle();
+  const [placementRes, historyRes] = await Promise.all([
+    supabase
+      .from("ojt_placements")
+      .select(
+        "application_id, moa_url, certificate_url, company:companies(id, name)",
+      )
+      .eq("user_id", id)
+      .maybeSingle(),
+    supabase
+      .from("ojt_placement_history")
+      .select("id, application_id, selected_at, company:companies(id, name)")
+      .eq("user_id", id)
+      .order("selected_at", { ascending: false }),
+  ]);
 
   const student = studentRes.data;
   const studentProfile = studentProfileRes.data;
   const applications = applicationsRes.data ?? [];
   const placement = placementRes.data;
+
+  // Chronological log of placements the student has since moved away from.
+  const placementHistory = (
+    (historyRes.data ?? []) as Array<{
+      id: string;
+      application_id: string;
+      selected_at: string;
+      company: { id: string; name: string }[] | { id: string; name: string } | null;
+    }>
+  ).map((h) => ({
+    id: h.id,
+    applicationId: h.application_id,
+    changedAt: h.selected_at,
+    company: Array.isArray(h.company) ? h.company[0] : h.company,
+  }));
+
+  // Applications that were once this student's final placement but were changed.
+  const formerPlacementIds = new Set(
+    placementHistory
+      .map((h) => h.applicationId)
+      .filter((appId) => appId !== placement?.application_id),
+  );
   const placementCompany = placement
     ? Array.isArray(placement.company)
       ? placement.company[0]
@@ -217,6 +249,40 @@ export default async function CoordinatorStudentPage({ params }: Props) {
               )}
             </div>
 
+            {placementHistory.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Placement History
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Previous final placements this student moved away from.
+                </p>
+                <ol className="mt-4 space-y-3">
+                  {placementHistory.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-start gap-3 border-l-2 border-slate-200 pl-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900">
+                          {entry.company?.name ?? "Unknown company"}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Changed {formatDate(entry.changedAt)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="ml-auto border-slate-300 text-slate-500"
+                      >
+                        Former placement
+                      </Badge>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-6 py-4">
                 <p className="font-semibold text-slate-900">
@@ -252,6 +318,10 @@ export default async function CoordinatorStudentPage({ params }: Props) {
                         const company = Array.isArray(application.company)
                           ? application.company[0]
                           : application.company;
+                        const displayStatus =
+                          placement?.application_id === application.id
+                            ? "placement"
+                            : application.status;
                         return (
                           <tr
                             key={application.id}
@@ -259,18 +329,23 @@ export default async function CoordinatorStudentPage({ params }: Props) {
                           >
                             <td className="px-6 py-3 align-top">
                               <span>{company?.name || "Unknown company"}</span>
-                              {placement?.application_id === application.id && (
-                                <Badge variant="success" className="ml-2">
-                                  Final placement
-                                </Badge>
-                              )}
                             </td>
                             <td className="px-6 py-3 align-top">
-                              <Badge
-                                variant={statusBadgeVariant(application.status)}
-                              >
-                                {prettyStatus(application.status)}
-                              </Badge>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge
+                                  variant={statusBadgeVariant(displayStatus)}
+                                >
+                                  {prettyStatus(displayStatus)}
+                                </Badge>
+                                {formerPlacementIds.has(application.id) && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-slate-300 text-slate-500"
+                                  >
+                                    Former placement
+                                  </Badge>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-3 align-top text-right text-xs text-slate-400">
                               {formatDate(application.created_at)}
